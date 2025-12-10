@@ -1,0 +1,155 @@
+请将用户输入的task拆分为一组"可执行子任务",并以json格式保存,这些子任务将通过 LangGraph 工作流运行，因此必须满足以下要求：
+##重要要求##
+你必须只输出纯 JSON。不要输出任何自然语言、说明、评论或额外文本。
+最终输出必须只包含一个 JSON 对象，不允许出现其他内容。
+
+##Schema 硬性要求(必须严格遵守)##
+
+1. 顶层结构必须是：
+{{
+  "nodes": [...],
+  "edges": [...]
+}}
+
+2. 节点(node)要求:
+- id 必须是 "ST{{数字}}"，例如 ST1、ST2 ...
+- 编号必须从 1 开始，且连续，不允许跳号。
+- executor 如果为 "tool"，则 tool_name 必须是工具列表中的名称（完全一致）。
+- executor 如果为 "llm"，则 tool_name 必须为 null。
+- 当字段无值时必须使用 null（而不是字符串 "null"）。
+
+3. edges 列表：
+每个元素必须是：
+{{ "source": "STx", "target": "STy" }}
+
+4. JSON 必须为严格标准 JSON:
+- 不允许出现注释
+- 不允许出现尾随逗号
+- 不允许多余字段、空字段或格式错误
+
+##子任务可执行性要求##
+1. 每个子任务必须是工具或 LLM 能够独立完成的操作
+
+2. 每个子任务必须包含：
+    - 唯一标识 ID (格式为 "ST1", "ST2", ...)
+    - 任务名称
+    - 任务描述(LLM 或工具如何执行)
+    - executor("llm" 或 "tool")
+    - tool_name(如果 executor="tool",必须指定工具名称,否则为null)
+    - 前置任务(如果没有则为null)
+    - 后置任务(如果没有则为null)    
+    - 输出内容(子任务预期输出结果，用于后续核对节点执行结果)
+    - 输入内容(executor="tool" 时需要指定工具输入参数;为LLM时,输入内容为提示词)
+
+3. 每个子任务之间的依赖必须形成 DAG(无环)，用于构建工作流图。
+
+##引用上游输出的规则##
+1. 当需要引用上游节点的输出时，只能使用格式：{{STx.output}}
+2. **禁止**使用复杂路径，如 {{STx.output[0].field}} 或 {{STx.output.field}}
+3. 系统会自动通过参数整形节点处理字段匹配和类型转换
+4. 例如：
+   - 正确：{{"param": "{{ST1.output}}"}}
+   - 错误：{{"param": "{{ST1.output[0].stationCode}}"}}
+
+##工具列表##
+{tools}
+
+##输出格式##
+{{
+  "nodes": [
+    {{
+      "id": "ST1",
+      "name": "任务名",
+      "description": "任务描述",
+      "executor": "llm",
+      "source": "prenode_id",
+      "target": "nextnode_id",
+      "output": "任务预期输出",
+      "input": {{
+            "tool's parameter or llm's prompt"
+        }}
+    }}
+  ],
+  "edges": [
+    {{ "source": "ST1", "target": "ST2" }}
+  ]
+}}
+
+##输出示例##
+
+示例1：查询今天北京的天气并生成一句总结
+
+{{
+  "nodes": [
+    {{
+      "id": "ST1",
+      "name": "获取天气信息",
+      "description": "调用天气工具，根据输入的城市名称获取实时天气数据。",
+      "executor": "tool",
+      "tool_name": "weather_lookup",
+      "source": "null",
+      "target": "ST2",
+      "output": "北京当前天气信息的文本说明",
+      "input": {{
+            "location": "Beijing",
+            "unit": "metric"
+        }}
+    }},
+    {{
+      "id": "ST2",
+      "name": "生成总结语句",
+      "description": "根据上一节点输出的天气信息，使用 LLM 生成一句自然语言总结。",
+      "executor": "llm",
+      "tool_name": null,
+      "source": "ST1",
+      "target": "null",
+      "output": "一句关于北京今日天气的自然语言总结",
+      "input": {{
+       "prompt": "请根据以下天气信息生成一句总结：{{{{ST1.output}}}}"
+    }}   
+  ],
+  "edges": [
+    {{ "source": "ST1", "target": "ST2" }}
+  ]
+  }}
+}}
+
+示例2：工具节点引用上游输出（查询车站代码后查询余票）
+
+{{
+  "nodes": [
+    {{
+      "id": "ST1",
+      "name": "获取车站代码",
+      "description": "通过城市名查询车站代码",
+      "executor": "tool",
+      "tool_name": "get-station-code-of-citys",
+      "source": "null",
+      "target": "ST2",
+      "output": "上海的车站代码",
+      "input": {{
+            "citys": "上海"
+        }}
+    }},
+    {{
+      "id": "ST2",
+      "name": "查询余票",
+      "description": "使用车站代码查询余票信息",
+      "executor": "tool",
+      "tool_name": "get-tickets",
+      "source": "ST1",
+      "target": "null",
+      "output": "余票信息",
+      "input": {{
+            "date": "2025-12-10",
+            "fromStation": "{{{{ST1.output}}}}",
+            "toStation": "HZH"
+        }}
+    }}
+  ],
+  "edges": [
+    {{ "source": "ST1", "target": "ST2" }}
+  ]
+}}
+
+任务：{task}

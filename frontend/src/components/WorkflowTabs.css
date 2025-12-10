@@ -1,0 +1,56 @@
+.workflow-tabs {
+  height: 100vh;             /* 整个区域占满屏幕 */
+  display: flex;
+  flex-direction: column;
+  background: #0d1117;
+}
+
+/* 头部 Tab 按钮区域 */
+.tabs-header {
+  display: flex;
+  border-bottom: 1px solid #30363d;
+  padding: 0.5rem;
+  gap: 0.5rem;
+  background: #161b22;
+}
+
+.tab-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.4rem 0.75rem;
+  background: #21262d;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #c9d1d9;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.tab-button.active {
+  background: #30363d;
+  border-color: #58a6ff;
+  color: #58a6ff;
+}
+
+.tab-button:hover {
+  background: #30363d;
+}
+
+/* 标题描述 */
+.tab-description {
+  padding: 0.6rem 1rem;
+  color: #8b949e;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #30363d;
+  background: #0d1117;
+}
+
+/* 内容区域 — 这是关键修复 👇 */
+.tabs-content {
+  flex: 1;         /* 自动填满剩余空间 */
+  min-height: 0;   /* 防 overflow，ReactFlow 必须要这个 */
+  position: relative;
+  overflow: hidden;
+}

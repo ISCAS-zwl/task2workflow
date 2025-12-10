@@ -1,0 +1,119 @@
+.status-bar {
+  background: rgba(11, 16, 25, 0.95);
+  border: 1px solid rgba(42, 48, 59, 0.9);
+  border-radius: 20px;
+  padding: 1.25rem 1.75rem 0.75rem;
+  box-shadow: 0 20px 60px rgba(2, 4, 10, 0.65);
+}
+
+.status-progress {
+  height: 4px;
+  background: rgba(33, 38, 45, 0.9);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 1.25rem;
+}
+
+.status-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1f6feb 0%, #8b5cf6 100%);
+  transition: width 0.5s ease;
+}
+
+.status-bar.error .status-progress-fill {
+  background: linear-gradient(90deg, #f85149 0%, #ffb199 100%);
+}
+
+.status-stages {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.status-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.status-stage-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(24, 30, 42, 0.9);
+  border: 1px solid rgba(48, 54, 61, 0.9);
+}
+
+.status-stage.pending .status-stage-icon {
+  color: #7d8590;
+}
+
+.status-stage.active .status-stage-icon {
+  border-color: rgba(88, 166, 255, 0.9);
+  color: #58a6ff;
+  box-shadow: 0 0 0 6px rgba(88, 166, 255, 0.15);
+}
+
+.status-stage.completed .status-stage-icon {
+  border-color: rgba(63, 185, 80, 0.9);
+  color: #3fb950;
+  background: rgba(27, 42, 31, 0.9);
+}
+
+.status-bar.error .status-stage.active .status-stage-icon {
+  border-color: rgba(248, 81, 73, 0.9);
+  color: #f85149;
+  box-shadow: 0 0 0 6px rgba(248, 81, 73, 0.15);
+}
+
+.status-stage-label {
+  font-size: 0.8rem;
+  color: #9ea7b9;
+}
+
+.status-stage.active .status-stage-label {
+  color: #e6edf3;
+}
+
+.status-stage.completed .status-stage-label {
+  color: #3fb950;
+}
+
+.status-summary {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  padding-top: 1rem;
+  font-size: 0.85rem;
+}
+
+.status-summary-item {
+  color: #7d8590;
+}
+
+.status-summary-item.success {
+  color: #3fb950;
+}
+
+.status-summary-item.failed {
+  color: #f85149;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
