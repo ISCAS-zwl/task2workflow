@@ -27,6 +27,65 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def apply_param_overrides(workflow_ir, param_overrides):
+    """
+    应用参数覆盖到 WorkflowIR
+    
+    Args:
+        workflow_ir: WorkflowIR 对象
+        param_overrides: dict, 格式 {"ST1": {"city": "上海"}, "ST2": {...}}
+    
+    Returns:
+        修改后的 WorkflowIR 对象
+    """
+    from src.subtask_planner import WorkflowIR, Subtask
+    
+    if not param_overrides:
+        return workflow_ir
+    
+    modified_nodes = []
+    for node in workflow_ir.nodes:
+        if node.id in param_overrides:
+            override_params = param_overrides[node.id]
+            logger.info(f"节点 {node.id} 应用参数覆盖: {override_params}")
+            
+            # 复制节点数据
+            node_dict = node.model_dump()
+            
+            # 合并参数覆盖
+            if node_dict.get("input") is None:
+                node_dict["input"] = {}
+            
+            # 根据节点类型处理参数
+            if node.executor == "tool":
+                # 工具节点：直接覆盖 input 中的参数
+                if isinstance(node_dict["input"], dict):
+                    if "__from_guard__" in node_dict["input"]:
+                        # 如果有 guard 节点，记录覆盖意图（在执行时处理）
+                        node_dict["input"]["_param_overrides"] = override_params
+                    else:
+                        # 直接合并参数
+                        node_dict["input"].update(override_params)
+            elif node.executor == "llm":
+                # LLM 节点：覆盖 input 中的字段
+                if isinstance(node_dict["input"], dict):
+                    node_dict["input"].update(override_params)
+                else:
+                    # 如果 input 是字符串（旧格式），转为字典
+                    node_dict["input"] = {"prompt": node_dict["input"], **override_params}
+            elif node.executor == "param_guard":
+                # param_guard 节点：覆盖 target_input_template
+                if "input" in node_dict and isinstance(node_dict["input"], dict):
+                    if "target_input_template" in node_dict["input"]:
+                        node_dict["input"]["target_input_template"].update(override_params)
+            
+            modified_nodes.append(Subtask(**node_dict))
+        else:
+            modified_nodes.append(node)
+    
+    return WorkflowIR(nodes=modified_nodes, edges=workflow_ir.edges)
+
+
 async def _refresh_mcp_tools_background() -> None:
     try:
         data = await asyncio.to_thread(refresh_tool_metadata)
@@ -116,7 +175,7 @@ async def save_result(final_result, timestamp):
         json.dump(result_data, f, indent=2, ensure_ascii=False)
     logger.info(f"已保存最终结果到: {result_file}")
 
-async def execute_workflow(task: str):
+async def execute_workflow(task: str, param_overrides: dict = None):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     tools = {}
     mcp_manager = None
@@ -125,6 +184,10 @@ async def execute_workflow(task: str):
         logger.info("MCP 工具管理器已启用")
     except MCPManagerError as exc:
         logger.warning("MCP 工具不可用: %s", exc)
+    
+    # 记录参数覆盖信息
+    if param_overrides:
+        logger.info(f"应用参数覆盖: {param_overrides}")
     
     try:
         await manager.broadcast({
@@ -147,6 +210,11 @@ async def execute_workflow(task: str):
         
         workflow_ir = planner.plan(task)
         last_run = planner.get_last_run()
+        
+        # 应用参数覆盖
+        if param_overrides:
+            workflow_ir = apply_param_overrides(workflow_ir, param_overrides)
+            logger.info("参数覆盖已应用")
         
         await manager.broadcast({
             "type": "planning",
@@ -428,7 +496,8 @@ async def websocket_endpoint(websocket: WebSocket):
             
             if data["type"] == "start":
                 task = data.get("task", "")
-                asyncio.create_task(execute_workflow(task))
+                param_overrides = data.get("param_overrides", None)
+                asyncio.create_task(execute_workflow(task, param_overrides))
                 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

@@ -273,7 +273,12 @@ class Graph2Workflow:
                 "status": "running"
             }
             
+            tool_input = None
+            raw_input = subtask.input if subtask.input else {}
+            
             try:
+                # 提前记录规划参数（失败时的 fallback）
+                trace_entry["input"] = truncate_output(raw_input)
                 tool_func = self.tools.get(subtask.tool_name)
                 if (
                     not tool_func
@@ -285,8 +290,6 @@ class Graph2Workflow:
                 if not tool_func:
                     raise ValueError(f"工具 {subtask.tool_name} 未找到")
 
-                raw_input = subtask.input if subtask.input else {}
-
                 if "__from_guard__" in raw_input:
                     # 单个 guard 节点
                     guard_id = raw_input.get("__from_guard__")
@@ -294,6 +297,13 @@ class Graph2Workflow:
                     if not isinstance(guard_output, dict):
                         raise ValueError(f"参数校验节点 {guard_id} 输出异常，期望字典")
                     tool_input = guard_output
+                    
+                    # 应用参数覆盖（如果有）
+                    if "_param_overrides" in raw_input:
+                        param_overrides = raw_input["_param_overrides"]
+                        tool_input = {**tool_input, **param_overrides}
+                        self.logger.info(f"工具节点 {subtask.id} 应用参数覆盖: {param_overrides}")
+                        
                 elif "__from_guards__" in raw_input:
                     # 多个 guard 节点：合并所有 guard 的输出
                     guard_ids = raw_input.get("__from_guards__", [])
@@ -305,6 +315,13 @@ class Graph2Workflow:
                         # 合并字典，后面的 guard 会覆盖前面的同名键
                         tool_input.update(guard_output)
                     self.logger.info(f"工具节点 {subtask.id} 从 {len(guard_ids)} 个 guard 节点合并参数")
+                    
+                    # 应用参数覆盖（如果有）
+                    if "_param_overrides" in raw_input:
+                        param_overrides = raw_input["_param_overrides"]
+                        tool_input = {**tool_input, **param_overrides}
+                        self.logger.info(f"工具节点 {subtask.id} 应用参数覆盖: {param_overrides}")
+                        
                 else:
                     # 检查是否包含引用语法（理论上不应该出现，因为 guard 节点会处理）
                     raw_input_str = json.dumps(raw_input, ensure_ascii=False)
@@ -315,7 +332,7 @@ class Graph2Workflow:
                         )
                     tool_input = self._resolve_dependencies(raw_input, state["outputs"])
 
-                # 截断输入用于 trace（执行时使用原始 tool_input）
+                # 更新为实际解析后的参数
                 trace_entry["input"] = truncate_output(tool_input)
 
                 # 执行工具，将字典解包为关键字参数
@@ -349,6 +366,10 @@ class Graph2Workflow:
                 trace_entry["error"] = str(e)
                 trace_entry["end_time"] = end_time.isoformat()
                 trace_entry["duration_ms"] = (end_time - start_time).total_seconds() * 1000
+                
+                # 如果成功解析了参数，确保使用实际参数而非规划参数
+                if tool_input is not None:
+                    trace_entry["input"] = truncate_output(tool_input)
 
             self.execution_trace.append(trace_entry)
             self._mark_node_completed(subtask.id)
@@ -407,9 +428,15 @@ class Graph2Workflow:
                 "status": "running"
             }
             
+            prompt_str = None
+            
             try:
                 # --- 修改点：解析输入依赖并提取 Prompt ---
                 raw_input = subtask.input if subtask.input else {}
+                
+                # 提前记录规划参数（失败时的 fallback）
+                trace_entry["input"] = {"prompt": truncate_output(raw_input)}
+                
                 resolved_input = self._resolve_dependencies(raw_input, state["outputs"])
                 
                 # 确定最终发送给 LLM 的字符串 Prompt
@@ -423,7 +450,7 @@ class Graph2Workflow:
                     prompt_str = json.dumps(resolved_input, ensure_ascii=False)
                 # -------------------------------------
 
-                # 截断 prompt 用于 trace（执行时使用原始 prompt_str）
+                # 更新为实际解析后的 prompt
                 trace_entry["input"] = {"prompt": truncate_output(prompt_str)}
                 
                 messages = [HumanMessage(content=prompt_str)]
@@ -451,6 +478,10 @@ class Graph2Workflow:
                 trace_entry["error"] = str(e)
                 trace_entry["end_time"] = end_time.isoformat()
                 trace_entry["duration_ms"] = (end_time - start_time).total_seconds() * 1000
+                
+                # 如果成功解析了 prompt，确保使用实际 prompt 而非规划参数
+                if prompt_str is not None:
+                    trace_entry["input"] = {"prompt": truncate_output(prompt_str)}
             
             self.execution_trace.append(trace_entry)
             self._mark_node_completed(subtask.id)

@@ -66,6 +66,11 @@
             "-y",
             "@antv/mcp-server-chart"
         ]
-    }
+    },
+    "mcp-server-time": {
+    "command": "uvx",
+    "args": ["mcp-server-time"]
+  }
+
   }
 }

@@ -25,12 +25,14 @@
 }
 
 .custom-node {
-  min-width: 220px;
-  background: #161b22;
+  min-width: 260px;
+  max-width: 300px;
+  background: linear-gradient(135deg, #161b22 0%, #1a1f26 100%);
   border: 2px solid #30363d;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 0.875rem;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 .custom-node.pending {
@@ -40,26 +42,55 @@
 
 .custom-node.running {
   border-color: #58a6ff;
-  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
+  box-shadow: 0 0 0 4px rgba(88, 166, 255, 0.25), 0 4px 20px rgba(88, 166, 255, 0.3);
   animation: glow 2s ease-in-out infinite;
 }
 
 .custom-node.success {
   border-color: #3fb950;
-  box-shadow: 0 0 0 3px rgba(63, 185, 80, 0.2);
+  box-shadow: 0 0 0 4px rgba(63, 185, 80, 0.25), 0 4px 20px rgba(63, 185, 80, 0.2);
 }
 
 .custom-node.failed {
   border-color: #f85149;
-  box-shadow: 0 0 0 3px rgba(248, 81, 73, 0.2);
+  box-shadow: 0 0 0 4px rgba(248, 81, 73, 0.25), 0 4px 20px rgba(248, 81, 73, 0.3);
+}
+
+.custom-node.edited {
+  border-color: #f2cc60;
+  box-shadow: 0 0 0 4px rgba(242, 204, 96, 0.25), 0 4px 20px rgba(242, 204, 96, 0.2);
+}
+
+.custom-node:hover {
+  cursor: pointer;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(88, 166, 255, 0.3);
+  z-index: 10;
+}
+
+.custom-node.pending:hover {
+  border-color: #58a6ff;
+}
+
+.edited-badge {
+  margin-left: 0.25rem;
+  color: #f2cc60;
+  font-size: 0.875rem;
+}
+
+.actual-badge {
+  margin-left: 0.25rem;
+  color: #3fb950;
+  font-size: 0.75rem;
+  opacity: 0.8;
 }
 
 @keyframes glow {
   0%, 100% {
-    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
+    box-shadow: 0 0 0 4px rgba(88, 166, 255, 0.25), 0 4px 20px rgba(88, 166, 255, 0.3);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(88, 166, 255, 0.4);
+    box-shadow: 0 0 0 6px rgba(88, 166, 255, 0.4), 0 4px 24px rgba(88, 166, 255, 0.5);
   }
 }
 
@@ -121,6 +152,31 @@
   line-height: 1.4;
 }
 
+.node-params {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #30363d;
+}
+
+.param-item {
+  font-size: 0.7rem;
+  margin-bottom: 0.25rem;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.param-key {
+  color: #79c0ff;
+  font-weight: 600;
+  min-width: fit-content;
+}
+
+.param-value {
+  color: #a5d6ff;
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+}
+
 .node-footer {
   padding: 0.5rem 0.75rem;
   border-top: 1px solid #30363d;
@@ -134,4 +190,45 @@
   font-size: 0.75rem;
   color: #58a6ff;
   font-weight: 500;
+}
+
+.react-flow__edge-path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 4px rgba(88, 166, 255, 0.3));
+  transition: all 0.3s ease;
+}
+
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3.5px !important;
+  stroke-opacity: 1 !important;
+  filter: drop-shadow(0 0 8px rgba(88, 166, 255, 0.6));
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #79c0ff !important;
+  stroke-width: 3px !important;
+}
+
+.react-flow__handle {
+  width: 12px !important;
+  height: 12px !important;
+  background: #58a6ff !important;
+  border: 3px solid #0d1117 !important;
+  box-shadow: 0 0 8px rgba(88, 166, 255, 0.4);
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.custom-node:hover .react-flow__handle {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+.react-flow__handle-left {
+  left: -6px !important;
+}
+
+.react-flow__handle-right {
+  right: -6px !important;
 }

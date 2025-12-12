@@ -101,11 +101,34 @@ function WorkflowIRView({ workflow }) {
   const entryNodes = nodes.filter(node => node.source === 'null' || !edges.some(edge => edge.target === node.id))
   const exitNodes = nodes.filter(node => node.target === 'null' || !edges.some(edge => edge.source === node.id))
 
-  const formatParameter = (parameter) => {
-    if (parameter === undefined || parameter === null) return '{}'
-    return typeof parameter === 'string'
-      ? parameter
-      : JSON.stringify(parameter, null, 2)
+  const formatParameter = (node) => {
+    if (!node.input) return '{}'
+    
+    // LLM 节点：显示 prompt
+    if (node.executor === 'llm') {
+      const prompt = node.input.prompt || node.input
+      if (!prompt) return '{}'
+      return typeof prompt === 'string'
+        ? prompt
+        : JSON.stringify(prompt, null, 2)
+    }
+    
+    // 工具节点：显示 parameter 或整个 input（排除内部字段）
+    const parameter = node.input.parameter
+    if (parameter !== undefined && parameter !== null) {
+      return typeof parameter === 'string'
+        ? parameter
+        : JSON.stringify(parameter, null, 2)
+    }
+    
+    // 如果没有 parameter 字段，显示整个 input（排除 pre_output）
+    const filtered = { ...node.input }
+    delete filtered.pre_output
+    delete filtered.__from_guard__
+    delete filtered._param_overrides
+    
+    if (Object.keys(filtered).length === 0) return '{}'
+    return JSON.stringify(filtered, null, 2)
   }
 
   const getUpstream = (node) => {
@@ -162,8 +185,8 @@ function WorkflowIRView({ workflow }) {
             </div>
 
             <div className="node-io-block">
-              <span className="info-label">参数</span>
-              <pre className="info-code">{formatParameter(node.input?.parameter)}</pre>
+              <span className="info-label">{node.executor === 'llm' ? 'Prompt' : '参数'}</span>
+              <pre className="info-code">{formatParameter(node)}</pre>
             </div>
 
             {node.output && (

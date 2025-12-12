@@ -16,7 +16,7 @@ const tabDescriptions = {
   workflow: 'WorkflowIR 结构，查看节点输入输出与依赖。'
 }
 
-function WorkflowTabs({ dagData, planningData, executionData }) {
+function WorkflowTabs({ dagData, planningData, executionData, editMode, onParamOverridesChange, paramOverrides }) {
   const [activeTab, setActiveTab] = useState('dag')
 
   return (
@@ -37,7 +37,13 @@ function WorkflowTabs({ dagData, planningData, executionData }) {
 
       <div className="tabs-content">
         {activeTab === 'dag' && (
-          <DAGView data={dagData} executionData={executionData} />
+          <DAGView 
+            data={dagData} 
+            executionData={executionData} 
+            editMode={editMode}
+            onParamOverridesChange={onParamOverridesChange}
+            paramOverrides={paramOverrides}
+          />
         )}
         {activeTab === 'json' && (
           <PlanningView data={planningData} mode="json" />

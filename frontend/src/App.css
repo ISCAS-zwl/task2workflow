@@ -261,6 +261,29 @@
   box-shadow: 0 0 0 1px rgba(88, 166, 255, 0.3);
 }
 
+.ghost-button.apply-edits {
+  border-color: rgba(242, 204, 96, 0.8);
+  background: rgba(60, 50, 20, 0.92);
+  color: #f2cc60;
+  box-shadow: 0 0 0 1px rgba(242, 204, 96, 0.3);
+}
+
+.ghost-button.apply-edits:hover {
+  border-color: #f2cc60;
+  color: #f2cc60;
+  background: rgba(80, 70, 30, 0.92);
+}
+
+.ghost-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ghost-button:disabled:hover {
+  border-color: rgba(48, 54, 61, 0.9);
+  color: #e6edf3;
+}
+
 .status-bar-wrapper {
   padding: 0 2.5rem 1.5rem;
 }

@@ -14,12 +14,12 @@ import uvicorn
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("🚀 Task2Workflow 服务启动中...")
+    print("Task2Workflow starting...")
     print("=" * 60)
-    print("📍 后端服务: http://localhost:8000")
-    print("📍 WebSocket: ws://localhost:8000/ws")
-    print("📍 前端地址: http://localhost:3000 (需要单独启动)")
+    print("Backend: http://localhost:8000")
+    print("WebSocket: ws://localhost:8000/ws")
+    print("Frontend: http://localhost:3000 (start separately)")
     print("=" * 60)
-    print("按 Ctrl+C 停止服务\n")
+    print("Press Ctrl+C to stop\n")
     
     uvicorn.run(app, host="0.0.0.0", port=8000)

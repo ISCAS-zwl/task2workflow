@@ -3,7 +3,7 @@ import StatusBar from './components/StatusBar'
 import WorkflowTabs from './components/WorkflowTabs'
 import ExecutionSteps from './components/ExecutionSteps'
 import ResultView from './components/ResultView'
-import { Play, Zap, Square, RotateCcw, Bug } from 'lucide-react'
+import { Play, Zap, Square, RotateCcw, Bug, Edit3, Check } from 'lucide-react'
 import './App.css'
 
 function App() {
@@ -15,6 +15,9 @@ function App() {
   const [finalResult, setFinalResult] = useState(null)
   const [debugMode, setDebugMode] = useState(true)
   const [stopRequested, setStopRequested] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [paramOverrides, setParamOverrides] = useState({})
+  const [lastExecutedTask, setLastExecutedTask] = useState('')
   const wsRef = useRef(null)
 
   useEffect(() => {
@@ -145,16 +148,35 @@ function App() {
     setDagData(null)
     setExecutionData([])
     setFinalResult(null)
+    setEditMode(false)
+    setParamOverrides({})
   }
 
   const handleStart = () => {
     if (!task.trim()) return
+    
+    // 检查是否是新任务
+    const isNewTask = task !== lastExecutedTask
+    
+    // 如果有参数覆盖且任务变化，提示用户
+    if (isNewTask && Object.keys(paramOverrides).length > 0) {
+      const confirmed = confirm(
+        `检测到任务输入已变化，将丢弃 ${Object.keys(paramOverrides).length} 个参数修改。\n\n` +
+        `如需应用参数修改，请使用"应用修改"按钮。\n\n` +
+        `是否继续执行新任务？`
+      )
+      if (!confirmed) return
+    }
+    
     resetWorkflowState()
+    setLastExecutedTask(task)
     setCurrentStage('idle')
+    
     sendMessage({
       type: 'start',
       task,
-      debug: debugMode
+      debug: debugMode,
+      // 新任务不传递参数覆盖
     })
   }
 
@@ -167,6 +189,44 @@ function App() {
     resetWorkflowState()
     setCurrentStage('idle')
     setStopRequested(false)
+  }
+  
+  const toggleEditMode = () => {
+    if (currentStage === 'executing' || currentStage === 'planning') {
+      alert('工作流正在执行中，无法编辑')
+      return
+    }
+    setEditMode(prev => !prev)
+  }
+  
+  const handleApplyEdits = () => {
+    const editCount = Object.keys(paramOverrides).length
+    if (editCount === 0) {
+      alert('没有参数修改需要应用')
+      return
+    }
+    
+    if (!lastExecutedTask) {
+      alert('没有可重新执行的工作流')
+      return
+    }
+    
+    if (confirm(`确认应用 ${editCount} 个节点的参数修改并重新执行工作流？`)) {
+      setEditMode(false)
+      setCurrentStage('idle')
+      
+      // 清空之前的执行数据
+      setExecutionData([])
+      setFinalResult(null)
+      
+      // 使用上次的任务 + 参数覆盖
+      sendMessage({
+        type: 'start',
+        task: lastExecutedTask,
+        debug: debugMode,
+        param_overrides: paramOverrides
+      })
+    }
   }
 
   const progressText = workflowStats.totalNodes
@@ -246,6 +306,23 @@ function App() {
               清屏
             </button>
             <button
+              className={`ghost-button toggle ${editMode ? 'active' : ''}`}
+              onClick={toggleEditMode}
+              disabled={!dagData || currentStage === 'executing' || currentStage === 'planning'}
+            >
+              <Edit3 size={14} />
+              {editMode ? '编辑中' : '编辑工作流'}
+            </button>
+            {editMode && Object.keys(paramOverrides).length > 0 && (
+              <button
+                className="ghost-button apply-edits"
+                onClick={handleApplyEdits}
+              >
+                <Check size={14} />
+                应用修改 ({Object.keys(paramOverrides).length})
+              </button>
+            )}
+            <button
               className={`ghost-button toggle ${debugMode ? 'active' : ''}`}
               onClick={() => setDebugMode(prev => !prev)}
             >
@@ -277,6 +354,9 @@ function App() {
               dagData={graphData}
               planningData={planningData}
               executionData={executionData}
+              editMode={editMode}
+              onParamOverridesChange={setParamOverrides}
+              paramOverrides={paramOverrides}
             />
           </div>
         </section>
