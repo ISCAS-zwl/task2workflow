@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 import pathlib
 
-PROMPT_DIR = pathlib.Path(__file__).parent / "prompt.txt"
+PROMPT_DIR = pathlib.Path(__file__).parent.parent /"prompt" / "plan_prompt.txt"
 TOOLS_DIR = pathlib.Path(__file__).parent.parent / "tools"
 TOOLS_GENERATED_PATH = TOOLS_DIR / "generated_tools.json"
 
@@ -397,7 +397,7 @@ class SubtaskPlanner:
             target_input = target_node_data.get("input") or {}
             
             # 检查 input 中是否包含引用语法（如 {ST1.output}）
-            # 使用更精确的正则：完整匹配 {STx.output}
+            # 使用精确正则：完整匹配 {STx.output}
             input_str = json.dumps(target_input, ensure_ascii=False)
             if re.search(r"\{ST\d+\.output\}", input_str):
                 return True

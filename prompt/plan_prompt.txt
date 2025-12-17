@@ -25,7 +25,7 @@
 4. JSON 必须为严格标准 JSON:
 - 不允许出现注释
 - 不允许出现尾随逗号
-- 不允许多余字段、空字段或格式错误
+- 字段必须齐全，不允许多余字段或格式错误
 
 ##子任务可执行性要求##
 1. 每个子任务必须是工具或 LLM 能够独立完成的操作
@@ -36,12 +36,12 @@
     - 任务描述(LLM 或工具如何执行)
     - executor("llm" 或 "tool")
     - tool_name(如果 executor="tool",必须指定工具名称,否则为null)
-    - 前置任务(如果没有则为null)
-    - 后置任务(如果没有则为null)    
+    - source(节点的前置任务，如果没有则为null)
+    - target(节点的后置任务，如果没有则为null)    
     - 输出内容(子任务预期输出结果，用于后续核对节点执行结果)
     - 输入内容(executor="tool" 时需要指定工具输入参数;为LLM时,输入内容为提示词)
 
-3. 每个子任务之间的依赖必须形成 DAG(无环)，用于构建工作流图。
+3. 每个子任务之间的依赖必须形成 DAG(无环)，用于构建工作流图。 
 
 ##引用上游输出的规则##
 1. 当需要引用上游节点的输出时，只能使用格式：{{STx.output}}
@@ -55,6 +55,7 @@
 {tools}
 
 ##输出格式##
+1.节点为llm点时
 {{
   "nodes": [
     {{
@@ -62,11 +63,33 @@
       "name": "任务名",
       "description": "任务描述",
       "executor": "llm",
+      "tool_name": null,
       "source": "prenode_id",
       "target": "nextnode_id",
       "output": "任务预期输出",
       "input": {{
-            "tool's parameter or llm's prompt"
+        "prompt":""
+        }}
+    }}
+  ],
+  "edges": [
+    {{ "source": "ST1", "target": "ST2" }}
+  ]
+}}
+2.节点为tool节点时：
+{{
+  "nodes": [
+    {{
+      "id": "ST1",
+      "name": "任务名",
+      "description": "任务描述",
+      "executor": "tool",
+      "tool_name": "tool_name",
+      "source": "prenode_id",
+      "target": "nextnode_id",
+      "output": "任务预期输出",
+      "input": {{
+        tool节点需要传入的具体参数
         }}
     }}
   ],
@@ -102,10 +125,10 @@
       "executor": "llm",
       "tool_name": null,
       "source": "ST1",
-      "target": "null",
+      "target": null,
       "output": "一句关于北京今日天气的自然语言总结",
       "input": {{
-       "prompt": "请根据以下天气信息生成一句总结：{{{{ST1.output}}}}"
+       "prompt": "请根据以下天气信息生成一句总结：{{ST1.output}}"
     }}   
   ],
   "edges": [
@@ -124,7 +147,7 @@
       "description": "通过城市名查询车站代码",
       "executor": "tool",
       "tool_name": "get-station-code-of-citys",
-      "source": "null",
+      "source": null,
       "target": "ST2",
       "output": "上海的车站代码",
       "input": {{
@@ -142,7 +165,7 @@
       "output": "余票信息",
       "input": {{
             "date": "2025-12-10",
-            "fromStation": "{{{{ST1.output}}}}",
+            "fromStation": "{{ST1.output}}",
             "toStation": "HZH"
         }}
     }}

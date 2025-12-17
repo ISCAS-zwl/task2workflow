@@ -1,18 +1,13 @@
-from openai import OpenAI
-from dotenv import load_dotenv
-import os
-load_dotenv()
+import yaml
+from jinja2 import Template
 
-client = OpenAI(
-    api_key=os.getenv("TEST_KEY"),
-    base_url=os.getenv("TEST_URL")
+with open("prompt.yaml", "r", encoding="utf-8") as f:
+    cfg = yaml.safe_load(f)
+
+tpl = Template(cfg["template"])
+prompt = tpl.render(
+    tools="(这里是工具列表文本/JSON/YAML都行)",
+    task="(这里是用户任务)"
 )
 
-resp = client.chat.completions.create(
-    model=os.getenv("TEST_MODEL"),
-    messages=[
-        {"role": "user", "content": "你好，请自我介绍一下"}
-    ],
-)
-
-print(resp.choices[0].message.content)
+print(prompt)

@@ -134,7 +134,7 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-TRACK_DIR = Path(__file__).parent / "track"
+TRACK_DIR = Path(__file__).parent.parent / "track"
 
 async def save_graph(workflow_ir, timestamp):
     session_dir = TRACK_DIR / timestamp
@@ -246,7 +246,30 @@ async def execute_workflow(task: str, param_overrides: dict = None):
         })
         
         logger.info("开始执行工作流")
+        
+        # 创建同步广播回调（将在同步节点中调用）
+        broadcast_queue = []
+        def sync_broadcast_callback(trace_entry):
+            broadcast_queue.append(trace_entry)
+        
         g2w = Graph2Workflow(workflow_ir, tools, mcp_manager=mcp_manager)
+        
+        # 传递广播回调给 context
+        if hasattr(g2w, 'context') and g2w.context:
+            g2w.context.broadcast_callback = sync_broadcast_callback
+        
+        # 创建后台任务定期推送
+        async def broadcast_worker():
+            while True:
+                if broadcast_queue:
+                    trace_entry = broadcast_queue.pop(0)
+                    await manager.broadcast({
+                        "type": "execution",
+                        "data": trace_entry
+                    })
+                await asyncio.sleep(0.05)
+        
+        broadcast_task = asyncio.create_task(broadcast_worker())
         
         class StreamingGraph2Workflow(Graph2Workflow):
             async def _create_tool_node_async(self, subtask):
@@ -389,6 +412,21 @@ async def execute_workflow(task: str, param_overrides: dict = None):
         
         result = g2w.execute()
         
+        # 停止广播任务
+        broadcast_task.cancel()
+        try:
+            await broadcast_task
+        except asyncio.CancelledError:
+            pass
+        
+        # 推送队列中剩余的 trace
+        while broadcast_queue:
+            trace_entry = broadcast_queue.pop(0)
+            await manager.broadcast({
+                "type": "execution",
+                "data": trace_entry
+            })
+        
         execution_trace = g2w.get_execution_trace()
         failed_details = [
             {
@@ -399,12 +437,10 @@ async def execute_workflow(task: str, param_overrides: dict = None):
             if trace.get("status") == "failed"
         ]
 
-        for trace in execution_trace:
-            await manager.broadcast({
-                "type": "execution",
-                "data": trace
-            })
-            await asyncio.sleep(0.1)
+        # 不再重复推送（已通过 broadcast_worker 实时推送）
+        # for trace in execution_trace:
+        #     await manager.broadcast({"type": "execution", "data": trace})
+        #     await asyncio.sleep(0.1)
         
         await save_workflow_trace(execution_trace, timestamp)
         await save_result(result, timestamp)

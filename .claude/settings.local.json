@@ -6,7 +6,9 @@
       "Bash(python -c \"from src.workflow_validator import WorkflowValidator; from src.subtask_planner import SubtaskPlanner; print(''Import test passed'')\")",
       "Bash(python:*)",
       "Bash(find:*)",
-      "Bash(netstat:*)"
+      "Bash(netstat:*)",
+      "Bash(mkdir:*)",
+      "Bash(sed:*)"
     ],
     "deny": [],
     "ask": []
