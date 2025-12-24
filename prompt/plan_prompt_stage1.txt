@@ -1,0 +1,83 @@
+请将【用户任务】拆分为一组可执行子任务。本阶段只输出子任务清单和工具选择，不生成依赖关系，不生成工作流图，不生成工具输入参数。
+
+【用户任务】
+{task}
+
+【可用工具候选子集（你只能从这里选择 tool_name，来源于 MCP；包含必填字段摘要和 properties 字段摘要）】
+{tools}
+
+【输出要求（必须严格遵守）】
+1) 只输出一个 JSON 对象，结构必须为：
+{{
+  "nodes": [...],
+  "missing_tools": [...]
+}}
+
+2) nodes 数组中每个元素必须包含且仅包含以下字段（不允许多字段、不允许缺字段）：
+- "id": 必须为 "ST1"..."STn"，从 1 开始连续编号，不允许跳号
+- "name": 子任务名称（简短）
+- "description": 子任务描述（说明要做什么；若为 tool 节点要写清将调用哪个工具完成什么，并说明如何准备该工具的必填/关键字段）
+- "executor": 只能是 "tool" 或 "llm"
+- "tool_name": 若 executor="tool" 必须是 tools 中的某个 name；若 executor="llm" 必须为 null
+- "output": 一句话描述该子任务产出（供后续子任务使用）
+
+3) missing_tools field rules (optional but must exist):
+- If required tools are missing, list them in missing_tools
+- If no tools are missing, set missing_tools to []
+- Each item in missing_tools must include:
+  - "capability": short description of the missing capability
+  - "keywords": related search keywords array (can be empty)
+
+
+4) 严格禁止输出以下字段：
+- edges / depends_on / source / target
+- input（工具参数）
+- 任何非 JSON 内容
+
+5) 规划原则：
+- 尽量少的子任务，但必须可执行、可落地
+- 若缺少关键输入或当前工具不足以完成某一步，可以使用 executor="llm" 作为替代子任务
+- 每个子任务必须是调用一次某个工具或LLM可以完成的
+
+**输出示例**
+用户任务：
+查询 2025-12-10 上海到杭州的余票，并用一句话总结最早出发的一趟车次。
+
+你必须输出的 JSON（示例，仅供格式参考）：
+{{
+  "nodes": [
+    {{
+      "id": "ST1",
+      "name": "获取上海车站代码",
+      "description": "调用工具 get-station-code-of-citys，根据城市名“上海”查询出发站代码。",
+      "executor": "tool",
+      "tool_name": "get-station-code-of-citys",
+      "output": "上海对应的出发站代码（字符串）"
+    }},
+    {{
+      "id": "ST2",
+      "name": "获取杭州车站代码",
+      "description": "调用工具 get-station-code-of-citys，根据城市名“杭州”查询到达站代码。",
+      "executor": "tool",
+      "tool_name": "get-station-code-of-citys",
+      "output": "杭州对应的到达站代码（字符串）"
+    }},
+    {{
+      "id": "ST3",
+      "name": "查询余票信息",
+      "description": "调用工具 get-tickets，查询 2025-12-10 上海到杭州的余票信息。",
+      "executor": "tool",
+      "tool_name": "get-tickets",
+      "output": "余票列表（包含车次、出发时间、余票等信息）"
+    }},
+    {{
+      "id": "ST4",
+      "name": "生成最早车次总结",
+      "description": "根据上一节点的余票列表，使用 LLM 找出最早出发的车次并生成一句话总结。",
+      "executor": "llm",
+      "tool_name": null,
+      "output": "一句话总结：最早出发车次及其关键信息"
+    }}
+  ],
+  "missing_tools": []
+}}

@@ -1,123 +1,195 @@
-import copy
 import json
 import logging
-import os
-import re
-from typing import Optional, List, Dict, Any, Literal, Union
+from pathlib import Path
+from typing import Optional, List, Dict, Any, Tuple
 
 from openai import OpenAI
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import ValidationError
+
+from src.config import get_config
+from src.graph_validator import validate_workflow_ir
+from src.tool_retriever import ToolRetriever
+from src.task_optimizer import TaskOptimizer
+from src.planner.models import NodeInput, LLMConfig, Subtask, Edge, WorkflowIR
+from src.planner.json_extractor import JsonExtractor
+from src.planner.guard_injector import GuardInjector
+
+__all__ = [
+    "SubtaskPlanner",
+    "NodeInput",
+    "LLMConfig", 
+    "Subtask",
+    "Edge",
+    "WorkflowIR",
+]
 
 logger = logging.getLogger(__name__)
 
-import pathlib
-
-PROMPT_DIR = pathlib.Path(__file__).parent.parent /"prompt" / "plan_prompt.txt"
-TOOLS_DIR = pathlib.Path(__file__).parent.parent / "tools"
-TOOLS_GENERATED_PATH = TOOLS_DIR / "generated_tools.json"
-
-with PROMPT_DIR.open('r',encoding="utf-8") as f:
-    prompt_raw = f.read()
-
 
 def _load_tools_definition() -> Dict[str, Any]:
-    tools_data: Dict[str, Any] = {}
-    for path in [TOOLS_GENERATED_PATH]:
-        if not path.exists():
+    config = get_config()
+    path = config.tools_generated_path
+    if not path.exists():
+        return {}
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            content = json.load(f)
+            return content if isinstance(content, dict) else {}
+    except Exception as exc:
+        logger.warning("读取工具文件 %s 失败：%s", path, exc)
+        return {}
+
+
+def _load_prompt(path: Path, fallback: Path) -> str:
+    for candidate in (path, fallback):
+        if candidate and candidate.exists():
+            return candidate.read_text(encoding="utf-8")
+    raise FileNotFoundError(f"Prompt template not found: {path} (fallback: {fallback})")
+
+
+def _build_stage1_tools_payload(tools: Dict[str, Any]) -> List[Dict[str, Any]]:
+    payload: List[Dict[str, Any]] = []
+    for name, meta in (tools or {}).items():
+        description = ""
+        input_schema = {}
+        if isinstance(meta, dict):
+            description = str(meta.get("description") or "")
+            input_schema = meta.get("input_schema") or {}
+        
+        properties = input_schema.get("properties") or {} if isinstance(input_schema, dict) else {}
+        required = input_schema.get("required") or [] if isinstance(input_schema, dict) else []
+        required_set = set(required) if isinstance(required, list) else set()
+        
+        properties_summary: List[Dict[str, Any]] = []
+        if isinstance(properties, dict):
+            for key, prop in properties.items():
+                if not isinstance(prop, dict):
+                    prop = {}
+                field_info: Dict[str, Any] = {"name": str(key)}
+                if "type" in prop:
+                    field_info["type"] = prop.get("type")
+                if "description" in prop:
+                    field_info["description"] = prop.get("description")
+                if "enum" in prop:
+                    field_info["enum"] = prop.get("enum")
+                field_info["required"] = str(key) in required_set
+                properties_summary.append(field_info)
+        
+        payload.append({
+            "name": str(name),
+            "description": description,
+            "properties": properties_summary,
+        })
+    return payload
+
+
+def _extract_tool_names_from_stage1(draft_json: str) -> List[str]:
+    if not draft_json:
+        return []
+    try:
+        parsed = json.loads(draft_json)
+    except Exception:
+        return []
+    if not isinstance(parsed, dict):
+        return []
+    nodes = parsed.get("nodes")
+    if not isinstance(nodes, list):
+        return []
+    tool_names: List[str] = []
+    seen = set()
+    for node in nodes:
+        if not isinstance(node, dict):
             continue
-        try:
-            with path.open("r", encoding="utf-8") as f:
-                content = json.load(f)
-                if isinstance(content, dict):
-                    tools_data.update(content)
-        except Exception as exc:
-            logger.warning("读取工具文件 %s 失败：%s", path, exc)
-    return tools_data
-
-class NodeInput(BaseModel):
-    pre_output: Optional[str]
-    parameter: Union[str, Dict]
+        if node.get("executor") != "tool":
+            continue
+        tool_name = node.get("tool_name")
+        if isinstance(tool_name, str) and tool_name and tool_name not in seen:
+            tool_names.append(tool_name)
+            seen.add(tool_name)
+    return tool_names
 
 
-class LLMConfig(BaseModel):
-    api_key: Optional[str] = None
-    base_url: Optional[str] = None
-    model: Optional[str] = None
+def _extract_missing_tool_queries(draft_json: str) -> List[str]:
+    if not draft_json:
+        return []
+    try:
+        parsed = json.loads(draft_json)
+    except Exception:
+        return []
+    if not isinstance(parsed, dict):
+        return []
+    missing_tools = parsed.get("missing_tools")
+    if not isinstance(missing_tools, list):
+        return []
+    queries: List[str] = []
+    for item in missing_tools:
+        if not isinstance(item, dict):
+            continue
+        capability = item.get("capability")
+        keywords = item.get("keywords")
+        parts: List[str] = []
+        if isinstance(capability, str) and capability.strip():
+            parts.append(capability.strip())
+        if isinstance(keywords, list):
+            parts.extend([str(k).strip() for k in keywords if str(k).strip()])
+        query = " ".join(parts).strip()
+        if query:
+            queries.append(query)
+    return queries
 
 
-class Subtask(BaseModel):
-    id: str
-    name: str
-    description: str
+def _filter_tools_by_name(tools: Dict[str, Any], names: List[str]) -> Dict[str, Any]:
+    if not tools or not names:
+        return {}
+    return {name: tools[name] for name in names if name in tools}
 
-    executor: Literal["llm", "tool", "param_guard"] = "llm"
-    tool_name: Optional[str] = None
-
-    source: Optional[str] = Field(default=None, description="前置节点，没有则为 null")
-    target: Optional[str] = Field(default=None, description="后置节点，没有则为 null")
-
-    output: Optional[str] = Field(default=None, description="子任务预期输出")
-    input: Optional[Dict[str, Any]] = Field(default=None, description="输入定义")
-    
-    llm_config: Optional[LLMConfig] = Field(default=None, description="LLM节点和param_guard节点的自定义模型配置")
-
-
-class Edge(BaseModel):
-    source: str
-    target: str
-
-
-class WorkflowIR(BaseModel):
-    nodes: List[Subtask]
-    edges: List[Edge]
 
 class SubtaskPlanner:
-    """
-    三阶段规划器：
-    1) 直接输出结构化 JSON
-    2) 自动修复 JSON
-    3) 生成 WorkflowIR
-    """
 
     def __init__(self, model: str | None = None):
-        self.model = model or os.getenv("PLANNER_MODEL", "gpt-4o")
+        self.config = get_config()
+        self.model = model or self.config.planner_model
         self.client = OpenAI(
-            api_key=os.getenv("PLANNER_KEY"),
-            base_url=os.getenv("PLANNER_URL"),
+            api_key=self.config.planner_key,
+            base_url=self.config.planner_url,
         )
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self.last_run: Dict[str, Any] = {}
-        # è½½å…¥å·¥å…·å®šä¹‰ä¾ä¸‹æ¸¸ schema æŸ¥è¯¢
         self.tools_definition = _load_tools_definition()
+        self.json_extractor = JsonExtractor(max_fix_attempts=self.config.max_fix_attempts)
+        self.guard_injector = GuardInjector(self.tools_definition)
+        self.task_optimizer = TaskOptimizer(model=self.model)
 
+    def _render_stage1_prompt(self, tools: str, task: str) -> str:
+        template = _load_prompt(
+            self.config.plan_stage1_prompt_path,
+            self.config.plan_prompt_path,
+        )
+        return template.format(tools=tools, task=task)
 
-    def _generate_workflow_json(self, task: str) -> str:
-        """直接向 LLM 请求生成符合 Schema 的 JSON 工作流。"""
-        tools_content = _load_tools_definition()
-        tools = json.dumps(tools_content, ensure_ascii=False)
+    def _render_stage2_prompt(self, tools: str, task: str, draft: str) -> str:
+        template = _load_prompt(
+            self.config.plan_stage2_prompt_path,
+            self.config.plan_prompt_path,
+        )
+        return template.format(tools=tools, task=task, draft=draft)
 
-        prompt = prompt_raw.format(tools=tools, task=task)
-
+    def _call_planner_llm(self, prompt: str) -> Tuple[str, Dict[str, Any]]:
+        system_prompt = "You are a workflow planning assistant. Output JSON only."
         resp = self.client.chat.completions.create(
             model=self.model,
             messages=[
-                {
-                    "role": "system",
-                    "content": "你是一名workflow 规划专家，擅长将复杂任务拆解为子任务并生成结构化 JSON。",
-                },
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt},
             ],
-                extra_body={
-        "chat_template_kwargs": {"enable_thinking": False}
-    }
+            extra_body={"chat_template_kwargs": {"enable_thinking": False}},
         )
-        
-        # 记录 LLM 响应元信息
+
         content = resp.choices[0].message.content if resp.choices else ""
         if content:
             content = content.strip()
-        
-        self.last_run["llm_response_metadata"] = {
+
+        metadata = {
             "model": self.model,
             "finish_reason": resp.choices[0].finish_reason if resp.choices else None,
             "content_length": len(content),
@@ -126,168 +198,138 @@ class SubtaskPlanner:
             "completion_tokens": resp.usage.completion_tokens if resp.usage else None,
             "total_tokens": resp.usage.total_tokens if resp.usage else None,
         }
+        return content, metadata
+
+    def _generate_workflow_json(self, task: str) -> str:
+        full_tools = _load_tools_definition()
+        tools_content = full_tools
+        retriever = ToolRetriever(full_tools)
+        tools_subset = retriever.retrieve_subset(task, top_k=self.config.tool_retriever_top_k)
+        if tools_subset:
+            self.logger.info(
+                "ToolRetriever selected %s/%s tools for planning",
+                len(tools_subset),
+                len(full_tools),
+            )
+            tools_content = tools_subset
         
-        if not content:
-            self.logger.error("阶段1：LLM 返回空内容")
-            return "{}"  # 返回空 JSON，让后续验证捕获
-        
-        try:
-            return self._extract_json_block(content)
-        except ValueError:
-            self.logger.warning("阶段1：未能直接提取合法 JSON，进入阶段2尝试自动修复")
-            return content
+        stage1_tools_payload = _build_stage1_tools_payload(tools_content)
+        stage1_tools_json = json.dumps(stage1_tools_payload, ensure_ascii=False)
 
+        stage1_prompt = self._render_stage1_prompt(stage1_tools_json, task)
+        stage1_content, stage1_meta = self._call_planner_llm(stage1_prompt)
+        self.last_run["stage1_llm_response_metadata"] = stage1_meta
+        self.last_run["draft_json_raw"] = stage1_content or None
 
-    def _extract_json_block(self, content: str) -> str:
-        """从 LLM 输出 text 中提取 JSON 字符串。"""
-
-        stripped = content.strip()
-        if not stripped:
-            raise ValueError("LLM 输出为空")
-        
-        # 先移除 <think> 标签及其内容（包括未闭合的）
-        cleaned_content = re.sub(r"<think>.*?</think>", "", stripped, flags=re.DOTALL | re.IGNORECASE)
-        cleaned_content = re.sub(r"<think>.*", "", cleaned_content, flags=re.DOTALL | re.IGNORECASE)
-        cleaned_content = cleaned_content.strip()
-        
-        # 如果清理后为空，使用原内容
-        if not cleaned_content:
-            cleaned_content = stripped
-
-        try:
-            json.loads(cleaned_content)
-            return cleaned_content
-        except Exception:
-            pass
-
-        code_blocks = re.findall(r"```(?:json)?\s*(.*?)```", cleaned_content, flags=re.IGNORECASE | re.DOTALL)
-        for block in code_blocks:
-            candidate = block.strip()
-            if not candidate:
-                continue
+        if not stage1_content:
+            self.logger.error("Stage 1: LLM returned empty content.")
+            draft_json = ""
+        else:
             try:
-                json.loads(candidate)
-                return candidate
-            except Exception:
-                continue
+                draft_json = self.json_extractor.extract(stage1_content)
+            except ValueError:
+                self.logger.warning("Stage 1: failed to extract JSON, using raw content.")
+                draft_json = stage1_content
 
-        closing_map = {"{": "}", "[": "]"}
-        opening_chars = set(closing_map.keys())
-        closing_chars = set(closing_map.values())
+        self.last_run["draft_json"] = draft_json
+        
+        initial_missing_queries = _extract_missing_tool_queries(draft_json)
+        if initial_missing_queries:
+            extra_tools: Dict[str, Any] = {}
+            for query in initial_missing_queries:
+                more = retriever.retrieve_subset(query, top_k=self.config.tool_retriever_expand_k)
+                if more:
+                    extra_tools.update(more)
+            if extra_tools:
+                expanded_tools = {**tools_content, **extra_tools}
+                if len(expanded_tools) > len(tools_content):
+                    self.logger.info(
+                        "Stage 1: expanded tools from %s to %s based on missing_tools",
+                        len(tools_content),
+                        len(expanded_tools),
+                    )
+                    stage1_tools_payload = _build_stage1_tools_payload(expanded_tools)
+                    stage1_tools_json = json.dumps(stage1_tools_payload, ensure_ascii=False)
+                    stage1_prompt = self._render_stage1_prompt(stage1_tools_json, task)
+                    stage1_content, stage1_meta = self._call_planner_llm(stage1_prompt)
+                    self.last_run["stage1_llm_response_metadata"] = stage1_meta
+                    self.last_run["draft_json_raw"] = stage1_content or None
+                    if stage1_content:
+                        try:
+                            draft_json = self.json_extractor.extract(stage1_content)
+                        except ValueError:
+                            self.logger.warning("Stage 1 retry: failed to extract JSON, using raw content.")
+                            draft_json = stage1_content
+                    self.last_run["draft_json"] = draft_json
+                    tools_content = expanded_tools
 
-        start_idx = None
-        stack: List[str] = []
-        in_string = False
-        escape = False
-        idx = 0
-        length = len(cleaned_content)
+        missing_queries = _extract_missing_tool_queries(draft_json)
+        self.last_run["stage1_missing_tool_queries"] = missing_queries
 
-        while idx < length:
-            ch = cleaned_content[idx]
-            if start_idx is None:
-                if ch in opening_chars:
-                    start_idx = idx
-                    stack = [closing_map[ch]]
-                    in_string = False
-                    escape = False
-                idx += 1
-                continue
+        selected_tool_names = _extract_tool_names_from_stage1(draft_json)
+        self.last_run["stage1_selected_tool_names"] = selected_tool_names
 
-            if in_string:
-                if escape:
-                    escape = False
-                elif ch == "\\":
-                    escape = True
-                elif ch == '"':
-                    in_string = False
-            else:
-                if ch == '"':
-                    in_string = True
-                elif ch in opening_chars:
-                    stack.append(closing_map[ch])
-                elif ch in closing_chars:
-                    if not stack or ch != stack.pop():
-                        start_idx = None
-                        stack = []
-                        in_string = False
-                        escape = False
-                        idx += 1
-                        continue
+        stage2_tools_content = _filter_tools_by_name(full_tools, selected_tool_names)
+        if selected_tool_names and not stage2_tools_content:
+            self.logger.warning("Stage 2: no selected tools matched available tools.")
+        if not selected_tool_names:
+            self.logger.warning("Stage 2: no tools selected in stage 1.")
+        stage2_tools_json = json.dumps(stage2_tools_content, ensure_ascii=False)
+        self.last_run["stage2_tools_json"] = stage2_tools_json
+        self.last_run["stage2_tools"] = list(stage2_tools_content.keys())
 
-            if start_idx is not None and not stack:
-                candidate = cleaned_content[start_idx : idx + 1]
-                try:
-                    json.loads(candidate)
-                    return candidate.strip()
-                except Exception:
-                    idx = start_idx + 1
-                    start_idx = None
-                    stack = []
-                    in_string = False
-                    escape = False
-                    continue
+        stage2_prompt = self._render_stage2_prompt(stage2_tools_json, task, draft_json)
+        stage2_content, stage2_meta = self._call_planner_llm(stage2_prompt)
+        self.last_run["llm_response_metadata"] = stage2_meta
 
-            idx += 1
+        if not stage2_content:
+            self.logger.error("Stage 2: LLM returned empty content.")
+            return "{}"
 
-        raise ValueError("未能从 LLM 输出中提取 JSON")
-
-
+        try:
+            return self.json_extractor.extract(stage2_content)
+        except ValueError:
+            self.logger.warning("Stage 2: failed to extract JSON, entering auto-fix.")
+            return stage2_content
 
     def _auto_fix_json(self, raw_json: str) -> dict:
-        """
-        自动修复 LLM 输出的 JSON，直到可解析。
-        最多尝试 3 次。
-        """
-
-        for attempt in range(1, 4):
-            self.logger.info("阶段2：第 %s 次尝试解析/修复 JSON", attempt)
+        for attempt in range(1, self.config.max_fix_attempts + 1):
+            self.logger.info("Stage 2: attempt %s to parse/fix JSON", attempt)
             try:
-                candidate = self._extract_json_block(raw_json)
-                parsed = json.loads(candidate)
-                
-                # 验证必需字段
-                if not isinstance(parsed, dict):
-                    raise ValueError(f"JSON 必须是对象类型，当前类型: {type(parsed).__name__}")
-                
-                if "nodes" not in parsed:
-                    raise ValueError("JSON 缺少必需字段 'nodes'")
-                
-                if "edges" not in parsed:
-                    raise ValueError("JSON 缺少必需字段 'edges'")
-                
-                if not isinstance(parsed["nodes"], list):
-                    raise ValueError(f"'nodes' 必须是数组类型，当前类型: {type(parsed['nodes']).__name__}")
-                
-                if not isinstance(parsed["edges"], list):
-                    raise ValueError(f"'edges' 必须是数组类型，当前类型: {type(parsed['edges']).__name__}")
-                
-                if len(parsed["nodes"]) == 0:
-                    raise ValueError("'nodes' 数组不能为空")
+                parsed = self.json_extractor.extract_and_validate(raw_json)
                 
                 self.last_run["fix_attempts"].append({
                     "attempt": attempt,
                     "status": "success",
-                    "input": raw_json[:500],
-                    "output": candidate[:500],
-                    "parsed_keys": list(parsed.keys()) if isinstance(parsed, dict) else None,
+                    "input": raw_json[:self.config.log_truncate_length],
+                    "output": json.dumps(parsed, ensure_ascii=False)[:self.config.log_truncate_length],
                     "nodes_count": len(parsed.get("nodes", [])),
                     "edges_count": len(parsed.get("edges", [])),
                 })
                 
-                self.logger.info("阶段2：JSON 修复成功，nodes: %d, edges: %d", len(parsed["nodes"]), len(parsed["edges"]))
+                self.logger.info("Stage 2: JSON fix success, nodes: %d, edges: %d", 
+                               len(parsed["nodes"]), len(parsed["edges"]))
                 return parsed
             except Exception as e:
                 self.last_run["fix_attempts"].append({
                     "attempt": attempt,
                     "status": "failed",
-                    "input": raw_json[:500],
+                    "input": raw_json[:self.config.log_truncate_length],
                     "error": str(e),
                 })
                 
-                # 重用原始 prompt
-                tools_content = _load_tools_definition()
-                tools = json.dumps(tools_content, ensure_ascii=False)
-                original_prompt = prompt_raw.format(tools=tools, task=self.last_run.get('task', ''))
+                tools_json = self.last_run.get("stage2_tools_json")
+                if not tools_json:
+                    tools_content = _load_tools_definition()
+                    selected_tools = self.last_run.get("stage1_selected_tool_names") or []
+                    tools_content = _filter_tools_by_name(tools_content, selected_tools)
+                    tools_json = json.dumps(tools_content, ensure_ascii=False)
+                draft_json = self.last_run.get("draft_json") or self.last_run.get("draft_json_raw") or ""
+                original_prompt = self._render_stage2_prompt(
+                    tools_json,
+                    self.last_run.get('task', ''),
+                    draft_json,
+                )
                 
                 fix_prompt = f"""
 {original_prompt}
@@ -297,7 +339,7 @@ class SubtaskPlanner:
 你之前生成的内容不符合要求：
 
 ```
-{raw_json[:1500]}
+{raw_json[:self.config.fix_prompt_truncate_length]}
 ```
 
 请重新生成完整的工作流 JSON。注意：
@@ -307,16 +349,14 @@ class SubtaskPlanner:
                 resp = self.client.chat.completions.create(
                     model=self.model,
                     messages=[{"role": "user", "content": fix_prompt}],
-                        extra_body={
-        "chat_template_kwargs": {"enable_thinking": False}
-    }
+                    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
                 )
                 raw_json = resp.choices[0].message.content.strip()
-                self.logger.info("阶段2：已根据模型返回内容尝试修复 JSON")
+                self.logger.info("Stage 2: retrying JSON fix based on LLM response")
 
-        self.logger.error("阶段2：三次修复失败，无法生成合法 JSON")
+        self.logger.error("Stage 2: all %d fix attempts failed", self.config.max_fix_attempts)
         self.last_run["error_stage"] = "auto_fix_json"
-        raise ValueError("三次修复失败：无法生成合法 JSON")
+        raise ValueError(f"{self.config.max_fix_attempts} fix attempts failed: unable to generate valid JSON")
 
     def _build_workflow_ir(self, fixed_json: dict) -> WorkflowIR:
         try:
@@ -324,194 +364,35 @@ class SubtaskPlanner:
                 nodes=[Subtask(**n) for n in fixed_json["nodes"]],
                 edges=fixed_json["edges"],
             )
-            workflow_ir = self._inject_param_guard_nodes(workflow_ir)
-            self.logger.info("阶段3：WorkflowIR 校验完成")
+            workflow_ir = self.guard_injector.inject(workflow_ir)
+            self.logger.info("Stage 3: WorkflowIR validation complete")
             
-            from src.graph_validator import validate_workflow_ir
-            tools_data = _load_tools_definition()
-            available_tools = set(tools_data.keys())
+            selected_tools = self.last_run.get("stage1_selected_tool_names")
+            if selected_tools is not None:
+                available_tools = set(selected_tools)
+            else:
+                available_tools = set(self.tools_definition.keys())
             
             validation_result = validate_workflow_ir(workflow_ir, available_tools)
             if not validation_result.is_valid:
-                self.logger.error(f"阶段3：图结构验证失败\n{validation_result}")
-                raise ValueError(f"图结构验证失败：{validation_result}")
+                self.logger.error(f"Stage 3: graph validation failed\n{validation_result}")
+                raise ValueError(f"Graph validation failed: {validation_result}")
             
             if validation_result.warnings:
-                self.logger.warning(f"阶段3：图结构验证警告\n{validation_result}")
+                self.logger.warning(f"Stage 3: graph validation warnings\n{validation_result}")
             
             return workflow_ir
         except ValidationError as e:
-            self.logger.error("阶段3：Pydantic 校验失败")
-            raise ValueError(f"Pydantic 校验失败：{e}")
-
-    def _inject_param_guard_nodes(self, workflow_ir: WorkflowIR) -> WorkflowIR:
-        """
-        在相邻工具节点之间插入参数整形/校验节点：
-        - 上游输出 -> 守护节点 -> 下游工具
-        - 守护节点输出合规入参，下游工具通过 __from_guard__ 直接消费
-        """
-        node_data_map: Dict[str, Dict[str, Any]] = {
-            node.id: node.model_dump() for node in workflow_ir.nodes
-        }
-        edges_data: List[Dict[str, str]] = [edge.model_dump() for edge in workflow_ir.edges]
-
-        tools_definition = self.tools_definition or _load_tools_definition()
-
-        # 计算新的节点编号起点
-        def _extract_idx(node_id: str) -> int:
-            match = re.match(r"ST(\d+)", node_id)
-            return int(match.group(1)) if match else 0
-        
-        def _extract_guard_idx(node_id: str) -> int:
-            match = re.match(r"GUARD(\d+)", node_id)
-            return int(match.group(1)) if match else 0
-
-        next_idx = max((_extract_idx(nid) for nid in node_data_map.keys()), default=0) + 1
-        next_guard_idx = max((_extract_guard_idx(nid) for nid in node_data_map.keys()), default=0) + 1
-
-        new_edges: List[Dict[str, str]] = []
-        inserted_count = 0
-        
-        # 保存每个节点的原始 input，避免被多次修改
-        original_inputs: Dict[str, Dict[str, Any]] = {
-            node_id: copy.deepcopy(node_data.get("input") or {})
-            for node_id, node_data in node_data_map.items()
-        }
-
-        def _needs_param_guard(target_node_data: Dict[str, Any]) -> bool:
-            """
-            检查目标节点是否需要参数整形节点
-            
-            判断标准：
-            1. 目标节点必须是 tool 类型
-            2. input 中包含对上游节点输出的引用（{STx.output}）
-            
-            为什么需要 guard：
-            - 上游工具的输出可能是复杂对象（如 {"city": {"code": "SHH"}}）
-            - 下游工具期望的是特定字段（如 "SHH"）
-            - guard 节点负责提取正确的字段并整形参数
-            """
-            if target_node_data.get("executor") != "tool":
-                return False
-            
-            target_input = target_node_data.get("input") or {}
-            
-            # 检查 input 中是否包含引用语法（如 {ST1.output}）
-            # 使用精确正则：完整匹配 {STx.output}
-            input_str = json.dumps(target_input, ensure_ascii=False)
-            if re.search(r"\{ST\d+\.output\}", input_str):
-                return True
-            
-            return False
-
-        # ===== 阶段 1：收集需要插入 guard 的边 =====
-        target_guards_map: Dict[str, List[Dict[str, Any]]] = {}  # {target_id: [guard_info]}
-        
-        for edge in edges_data:
-            source_id = edge["source"]
-            target_id = edge["target"]
-
-            source_node = node_data_map.get(source_id)
-            target_node = node_data_map.get(target_id)
-
-            # 检查是否需要插入 guard（使用原始 input 判断）
-            # 注意：不限制上游节点类型，只要目标节点需要参数整形就插入 guard
-            if (
-                source_node
-                and target_node
-                and _needs_param_guard(target_node)
-            ):
-                if target_id not in target_guards_map:
-                    target_guards_map[target_id] = []
-                
-                target_guards_map[target_id].append({
-                    "source_id": source_id,
-                    "edge": edge
-                })
-            else:
-                # 不需要 guard 的边直接保留
-                new_edges.append(edge)
-
-        # ===== 阶段 2：每个目标节点只创建一个 guard 节点 =====
-        for target_id, guard_infos in target_guards_map.items():
-            target_node = node_data_map[target_id]
-            target_tool = target_node.get("tool_name")
-            target_schema = (tools_definition.get(target_tool) or {}).get("input_schema") or {}
-            target_input_template = copy.deepcopy(original_inputs.get(target_id, {}))
-            
-            # 收集所有上游节点 ID
-            source_ids = [info["source_id"] for info in guard_infos]
-            
-            # 创建单个 guard 节点
-            guard_id = f"GUARD{next_guard_idx}"
-            next_guard_idx += 1
-            inserted_count += 1
-            
-            # 确定 guard 的主要上游来源（用于 source 字段）
-            # 优先选择提供关键参数的节点，如果有多个则选第一个
-            primary_source = source_ids[0] if source_ids else None
-            
-            guard_node = Subtask(
-                id=guard_id,
-                name=f"参数整形: {target_tool or target_id}",
-                description=f"校验并整形下游工具 {target_tool or target_id} 的入参",
-                executor="param_guard",
-                tool_name=target_tool,
-                source=primary_source,
-                target=target_id,
-                output="整形后的下游工具入参",
-                input={
-                    "source_nodes": source_ids,  # 记录所有上游节点
-                    "target_node": target_id,
-                    "target_tool": target_tool,
-                    "target_input_template": target_input_template,
-                    "schema": target_schema,
-                },
-            )
-            
-            node_data_map[guard_id] = guard_node.model_dump()
-            
-            # 更新所有上游节点的 target 指针
-            for source_id in source_ids:
-                if node_data_map[source_id].get("target") == target_id:
-                    node_data_map[source_id]["target"] = guard_id
-            
-            # 添加边：所有 source → guard，guard → target
-            for source_id in source_ids:
-                new_edges.append({"source": source_id, "target": guard_id})
-            new_edges.append({"source": guard_id, "target": target_id})
-            
-            # 修改目标节点的 input 和 source
-            node_data_map[target_id]["input"] = {"__from_guard__": guard_id}
-            node_data_map[target_id]["source"] = guard_id
-
-        if inserted_count:
-            self.logger.info("已自动插入 %s 个参数整形节点", inserted_count)
-
-        # 重新生成 WorkflowIR，按类型和编号排序
-        def _sort_key(n):
-            node_id = n.get("id", "")
-            if node_id.startswith("GUARD"):
-                return (1, _extract_guard_idx(node_id))  # guard 节点排后面
-            else:
-                return (0, _extract_idx(node_id))  # ST 节点排前面
-        
-        sorted_nodes = sorted(node_data_map.values(), key=_sort_key)
-        return WorkflowIR(
-            nodes=[Subtask(**n) for n in sorted_nodes],
-            edges=new_edges,
-        )
-
-
+            self.logger.error("Stage 3: Pydantic validation failed")
+            raise ValueError(f"Pydantic validation failed: {e}")
 
     def plan(self, task: str) -> WorkflowIR:
-        """
-        Task -> JSON -> AutoFix -> WorkflowIR
-        """
-
         self.last_run = {
             "task": task,
+            "optimized_task": None,
             "plan_text": None,
+            "draft_json_raw": None,
+            "draft_json": None,
             "raw_json": None,
             "fixed_json": None,
             "workflow_ir": None,
@@ -519,15 +400,24 @@ class SubtaskPlanner:
             "error": None,
             "error_stage": None,
             "fix_attempts": [],
+            "stage1_llm_response_metadata": None,
             "llm_response_metadata": None,
+            "stage1_selected_tool_names": None,
+            "stage1_missing_tool_queries": None,
+            "stage2_tools_json": None,
+            "stage2_tools": None,
         }
 
         try:
-            self.logger.info("阶段1：开始生成 JSON 方案，任务：%s", task)
-            raw_json = self._generate_workflow_json(task)
-            self.last_run["plan_text"] = "[直接生成 JSON，未产生自然语言计划]"
+            self.logger.info("Stage 0: optimizing task: %s", task)
+            optimized_task = self.task_optimizer.optimize(task)
+            self.last_run["optimized_task"] = optimized_task
+            
+            self.logger.info("Stage 1: generating JSON plan for task: %s", optimized_task)
+            raw_json = self._generate_workflow_json(optimized_task)
+            self.last_run["plan_text"] = "[Direct JSON generation, no natural language plan]"
             self.last_run["raw_json"] = raw_json
-            self.logger.info("阶段1：JSON 方案生成完成")
+            self.logger.info("Stage 1: JSON plan generation complete")
 
             try:
                 fixed_json = self._auto_fix_json(raw_json)
@@ -535,7 +425,7 @@ class SubtaskPlanner:
             except Exception as e:
                 self.last_run["error"] = str(e)
                 self.last_run["error_stage"] = "auto_fix_json"
-                self.logger.exception("阶段2：JSON 修复失败")
+                self.logger.exception("Stage 2: JSON fix failed")
                 raise
 
             try:
@@ -543,11 +433,11 @@ class SubtaskPlanner:
                 self.last_run["workflow_ir"] = workflow_ir
                 workflow_json_str = workflow_ir.model_dump_json(indent=2, ensure_ascii=False)
                 self.last_run["workflow_json_str"] = workflow_json_str
-                self.logger.info("阶段3：WorkflowIR 生成完成")
+                self.logger.info("Stage 3: WorkflowIR generation complete")
             except Exception as e:
                 self.last_run["error"] = str(e)
                 self.last_run["error_stage"] = "build_workflow_ir"
-                self.logger.exception("阶段3：WorkflowIR 构建失败")
+                self.logger.exception("Stage 3: WorkflowIR build failed")
                 raise
             
             return workflow_ir
@@ -555,14 +445,11 @@ class SubtaskPlanner:
             if "error" not in self.last_run or not self.last_run["error"]:
                 self.last_run["error"] = str(exc)
                 self.last_run["error_stage"] = "unknown"
-            self.logger.exception("任务规划失败")
+            self.logger.exception("Task planning failed")
             raise
 
     def get_last_run(self) -> Dict[str, Any]:
-        """返回最近一次运行的阶段产物。"""
         return self.last_run
-
-
 
 
 if __name__ == "__main__":
@@ -573,4 +460,4 @@ if __name__ == "__main__":
     planner = SubtaskPlanner()
     task = "设计一个在线书店的系统架构"
     workflow_ir = planner.plan(task)
-    print(workflow_ir.json(indent=2, ensure_ascii=False))
+    print(workflow_ir.model_dump_json(indent=2, ensure_ascii=False))

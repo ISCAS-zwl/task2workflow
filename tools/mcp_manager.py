@@ -92,7 +92,7 @@ class MCPClientConnection:
         self._connection_future = asyncio.run_coroutine_threadsafe(
             self._connection_main(), self.loop
         )
-        if not self._ready_event.wait(timeout=10):
+        if not self._ready_event.wait(timeout=20):
             raise MCPManagerError(f"MCP Server '{self.server_name}' 启动超时")
 
     async def _async_call_tool(self, tool_name: str, arguments: Dict[str, Any]):

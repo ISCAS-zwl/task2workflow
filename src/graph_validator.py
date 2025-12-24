@@ -44,6 +44,16 @@ class GraphValidator:
     def __init__(self, available_tools: Optional[Set[str]] = None):
         self.available_tools = available_tools or set()
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+
+    @staticmethod
+    def _as_id_list(value: Any) -> List[str]:
+        if value is None or value == "null":
+            return []
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, str)]
+        if isinstance(value, str):
+            return [value]
+        return []
     
     def validate(self, workflow_ir) -> ValidationResult: # workflow_ir type hint removed for standalone run
         result = ValidationResult()
@@ -144,17 +154,17 @@ class GraphValidator:
         
         edge_set = {(edge.source, edge.target) for edge in edges}
         for node in nodes:
-            if node.source and node.source != "null":
-                if node.source not in node_ids:
-                    result.add_error(f"节点 {node.id} 的 source '{node.source}' 不存在")
-                elif (node.source, node.id) not in edge_set:
-                    result.add_warning(f"节点 {node.id} 声明 source '{node.source}'，但 edges 中缺少对应边")
+            for source_id in self._as_id_list(node.source):
+                if source_id not in node_ids:
+                    result.add_error(f"节点 {node.id} 的 source '{source_id}' 不存在")
+                elif (source_id, node.id) not in edge_set:
+                    result.add_warning(f"节点 {node.id} 声明 source '{source_id}'，但 edges 中缺少对应边")
             
-            if node.target and node.target != "null":
-                if node.target not in node_ids:
-                    result.add_error(f"节点 {node.id} 的 target '{node.target}' 不存在")
-                elif (node.id, node.target) not in edge_set:
-                    result.add_warning(f"节点 {node.id} 声明 target '{node.target}'，但 edges 中缺少对应边")
+            for target_id in self._as_id_list(node.target):
+                if target_id not in node_ids:
+                    result.add_error(f"节点 {node.id} 的 target '{target_id}' 不存在")
+                elif (node.id, target_id) not in edge_set:
+                    result.add_warning(f"节点 {node.id} 声明 target '{target_id}'，但 edges 中缺少对应边")
     
     def _validate_dag(self, nodes, edges, result: ValidationResult):
         graph = {}
@@ -220,8 +230,8 @@ class GraphValidator:
             if edge.source in graph:
                 graph[edge.source].append(edge.target)
         
-        start_nodes = [n.id for n in nodes if not n.source or n.source == "null"]
-        end_nodes = [n.id for n in nodes if not n.target or n.target == "null"]
+        start_nodes = [n.id for n in nodes if not self._as_id_list(n.source)]
+        end_nodes = [n.id for n in nodes if not self._as_id_list(n.target)]
         
         if not start_nodes:
             result.add_error("没有找到起始节点（source 为 null 的节点）")

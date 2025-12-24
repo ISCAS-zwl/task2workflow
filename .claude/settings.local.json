@@ -8,7 +8,8 @@
       "Bash(find:*)",
       "Bash(netstat:*)",
       "Bash(mkdir:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

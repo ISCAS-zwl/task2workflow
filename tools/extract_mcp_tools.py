@@ -23,7 +23,7 @@ import json
 import os
 from contextlib import AsyncExitStack
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -115,6 +115,56 @@ async def extract_tools(config_path: Path, output_path: Path) -> Dict[str, Any]:
     return aggregated
 
 
+async def extract_tools_incremental(
+    config_path: Path,
+    output_path: Path,
+) -> Tuple[Dict[str, Any], int]:
+    servers = load_config(config_path)
+
+    existing: Dict[str, Any] = {}
+    if output_path.exists():
+        try:
+            with output_path.open("r", encoding="utf-8") as f:
+                existing = json.load(f)
+        except json.JSONDecodeError as exc:
+            raise ToolExtractionError(f"解析已存在工具文件失败: {exc}") from exc
+        if not isinstance(existing, dict):
+            raise ToolExtractionError("已存在工具文件格式错误，必须为 JSON 对象")
+
+    existing_servers = {
+        meta.get("mcp_server")
+        for meta in existing.values()
+        if isinstance(meta, dict) and meta.get("mcp_server")
+    }
+
+    new_servers = [name for name in servers.keys() if name not in existing_servers]
+    if not new_servers:
+        return existing, 0
+
+    aggregated = dict(existing)
+    added_count = 0
+
+    for server_name in new_servers:
+        try:
+            tools = await list_server_tools(server_name, servers[server_name])
+        except Exception as exc:
+            raise ToolExtractionError(
+                f"连接 MCP Server '{server_name}' 失败: {exc}"
+            ) from exc
+
+        for tool_name, meta in tools.items():
+            if tool_name in aggregated:
+                continue
+            aggregated[tool_name] = meta
+            added_count += 1
+
+    if added_count:
+        with output_path.open("w", encoding="utf-8") as f:
+            json.dump(aggregated, f, indent=2, ensure_ascii=False)
+
+    return aggregated, added_count
+
+
 def refresh_tool_metadata(
     config_path: Path = DEFAULT_CONFIG,
     output_path: Path = DEFAULT_OUTPUT,
@@ -122,6 +172,14 @@ def refresh_tool_metadata(
     """便利函数：同步方式刷新 MCP 工具元信息。"""
 
     return asyncio.run(extract_tools(config_path, output_path))
+
+
+def refresh_tool_metadata_incremental(
+    config_path: Path = DEFAULT_CONFIG,
+    output_path: Path = DEFAULT_OUTPUT,
+) -> Tuple[Dict[str, Any], int]:
+    """仅增量添加新 MCP Server 的工具，不修改已有工具。"""
+    return asyncio.run(extract_tools_incremental(config_path, output_path))
 
 
 def parse_args() -> argparse.Namespace:

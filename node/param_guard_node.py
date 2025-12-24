@@ -1,48 +1,15 @@
-import json
 import os
-from typing import Optional, Any
+from typing import Optional
 
 from langchain_openai import ChatOpenAI
 
 from node.base_node import WorkflowNode, NodeExecutionContext
+from node.utils import truncate_output
 from src.workflow_types import WorkflowState
 from src.param_guard import ParamGuard
 
 
-MAX_OUTPUT_LENGTH = 1000
-TRUNCATED_SUFFIX = "\n... [输出已截断，原始长度: {original_length} 字符，显示前 {max_length} 字符] ..."
-
-
-def truncate_output(output: Any, max_length: Optional[int] = MAX_OUTPUT_LENGTH) -> Any:
-    """ParamGuard节点的输出截断功能"""
-    if not max_length:
-        return output
-    
-    if isinstance(output, str):
-        output_str = output
-    elif isinstance(output, (dict, list)):
-        output_str = json.dumps(output, ensure_ascii=False)
-    else:
-        output_str = str(output)
-    
-    if len(output_str) <= max_length:
-        return output
-    
-    original_length = len(output_str)
-    truncated_str = output_str[:max_length] + TRUNCATED_SUFFIX.format(
-        original_length=original_length,
-        max_length=max_length
-    )
-    
-    if isinstance(output, str):
-        return truncated_str
-    
-    return {
-        "_truncated": True,
-        "_original_type": type(output).__name__,
-        "_original_length": original_length,
-        "_preview": truncated_str
-    }
+GUARD_MAX_OUTPUT_LENGTH = 1000
 
 
 class ParamGuardNode(WorkflowNode):
@@ -111,13 +78,13 @@ class ParamGuardNode(WorkflowNode):
             
             trace_entry["input"] = {
                 "mode": result["mode"],
-                "candidate": truncate_output(candidate_input),
-                "upstream_output": truncate_output(upstream_output),
+                "candidate": truncate_output(candidate_input, GUARD_MAX_OUTPUT_LENGTH),
+                "upstream_output": truncate_output(upstream_output, GUARD_MAX_OUTPUT_LENGTH),
                 "schema": self.schema
             }
-            trace_entry["output"] = truncate_output(result["output"])
+            trace_entry["output"] = truncate_output(result["output"], GUARD_MAX_OUTPUT_LENGTH)
             if "raw_response" in result:
-                trace_entry["raw_response"] = truncate_output(result["raw_response"])
+                trace_entry["raw_response"] = truncate_output(result["raw_response"], GUARD_MAX_OUTPUT_LENGTH)
             
             state["outputs"][self.subtask.id] = result["output"]
             
@@ -132,14 +99,15 @@ class ParamGuardNode(WorkflowNode):
                     self.context.resolve_dependencies(
                         self.target_input_template,
                         state["outputs"]
-                    )
+                    ),
+                    GUARD_MAX_OUTPUT_LENGTH
                 ),
-                "upstream_output": truncate_output(state["outputs"].get(self.source_node)),
+                "upstream_output": truncate_output(state["outputs"].get(self.source_node), GUARD_MAX_OUTPUT_LENGTH),
                 "schema": self.schema
             }
             
             if hasattr(e, 'guard_metadata') and e.guard_metadata.get('raw_response'):
-                trace_entry["raw_response"] = truncate_output(e.guard_metadata['raw_response'])
+                trace_entry["raw_response"] = truncate_output(e.guard_metadata['raw_response'], GUARD_MAX_OUTPUT_LENGTH)
                 self.logger.info(f"已保存失败的 LLM 原始输出 (长度: {len(e.guard_metadata['raw_response'])})")
             
             self._finalize_trace(trace_entry, None, error=e)

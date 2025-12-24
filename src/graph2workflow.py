@@ -15,6 +15,7 @@ from langgraph.graph import StateGraph, END
 from tools.mcp_manager import MCPToolManager
 from src.param_guard import ParamGuard
 from src.workflow_types import WorkflowState
+from src.config import get_config
 from node import NodeFactory, NodeExecutionContext
 
 # 假设这些类定义在 src.subtask_planner 中，这里为了独立运行保留引用
@@ -29,13 +30,14 @@ class Graph2Workflow:
         tools: Dict[str, Any],
         mcp_manager: Optional[MCPToolManager] = None,
     ):
+        self.config = get_config()
         self.workflow_ir = workflow_ir
         self.tools = tools
         self.llm = ChatOpenAI(
-            api_key=os.getenv("PLANNER_KEY"),
-            base_url=os.getenv("PLANNER_URL"),
-            model=os.getenv("PLANNER_MODEL", "gpt-4o"),
-            timeout=60,
+            api_key=self.config.planner_key,
+            base_url=self.config.planner_url,
+            model=self.config.planner_model,
+            timeout=self.config.planner_timeout,
         )
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self.execution_trace = []
@@ -60,17 +62,16 @@ class Graph2Workflow:
         )
 
     def _load_tool_schemas(self) -> Dict[str, Any]:
-        """
-        加载生成的工具元数据，供参数校验节点复用。
-        """
-        meta_path = Path(__file__).parent.parent / "tools" / "generated_tools.json"
+        meta_path = self.config.tools_generated_path
         if not meta_path.exists():
+            self.logger.warning("工具元数据文件不存在: %s", meta_path)
             return {}
         try:
             with meta_path.open("r", encoding="utf-8") as f:
                 data = json.load(f)
                 return data if isinstance(data, dict) else {}
-        except Exception:
+        except Exception as e:
+            self.logger.error("加载工具元数据失败: %s", e, exc_info=True)
             return {}
 
     def _resolve_dependencies(self, input_data: Dict[str, Any], outputs: Dict[str, Any]) -> Dict[str, Any]:

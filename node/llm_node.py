@@ -1,48 +1,29 @@
 import json
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 
 from node.base_node import WorkflowNode, NodeExecutionContext
+from node.utils import truncate_output, INPUT_TRUNCATED_SUFFIX
 from src.workflow_types import WorkflowState
 
 
-MAX_OUTPUT_LENGTH = 8000
-TRUNCATED_SUFFIX = "\n... [输出已截断，原始长度: {original_length} 字符，显示前 {max_length} 字符] ..."
+LLM_MAX_OUTPUT_LENGTH = 8000
 
 
-def truncate_output(output: Any, max_length: Optional[int] = MAX_OUTPUT_LENGTH) -> Any:
-    """LLM节点的输出截断功能"""
-    if not max_length:
-        return output
-    
-    if isinstance(output, str):
-        output_str = output
-    elif isinstance(output, (dict, list)):
-        output_str = json.dumps(output, ensure_ascii=False)
-    else:
-        output_str = str(output)
-    
-    if len(output_str) <= max_length:
-        return output
-    
-    original_length = len(output_str)
-    truncated_str = output_str[:max_length] + TRUNCATED_SUFFIX.format(
-        original_length=original_length,
-        max_length=max_length
-    )
-    
-    if isinstance(output, str):
-        return truncated_str
-    
-    return {
-        "_truncated": True,
-        "_original_type": type(output).__name__,
-        "_original_length": original_length,
-        "_preview": truncated_str
-    }
+def truncate_input(prompt: str) -> str:
+    max_len = os.getenv("LLM_INPUT_MAX_CHARS")
+    if not max_len:
+        return prompt
+    try:
+        limit = int(max_len)
+    except ValueError:
+        return prompt
+    if limit <= 0 or len(prompt) <= limit:
+        return prompt
+    return prompt[:limit] + INPUT_TRUNCATED_SUFFIX
 
 
 class LLMNode(WorkflowNode):
@@ -74,13 +55,14 @@ class LLMNode(WorkflowNode):
         try:
             raw_input = self.subtask.input if self.subtask.input else {}
             
-            trace_entry["input"] = {"prompt": truncate_output(raw_input)}
+            trace_entry["input"] = {"prompt": truncate_output(raw_input, LLM_MAX_OUTPUT_LENGTH)}
             
             resolved_input = self.context.resolve_dependencies(raw_input, state["outputs"])
             
             prompt_str = self._extract_prompt(resolved_input)
+            prompt_str = truncate_input(prompt_str)
             
-            trace_entry["input"] = {"prompt": truncate_output(prompt_str)}
+            trace_entry["input"] = {"prompt": truncate_output(prompt_str, LLM_MAX_OUTPUT_LENGTH)}
             
             messages = [HumanMessage(content=prompt_str)]
             response = self.llm.invoke(messages)
@@ -97,7 +79,7 @@ class LLMNode(WorkflowNode):
             state["error"] = str(e)
             
             if prompt_str is not None:
-                trace_entry["input"] = {"prompt": truncate_output(prompt_str)}
+                trace_entry["input"] = {"prompt": truncate_output(prompt_str, LLM_MAX_OUTPUT_LENGTH)}
             
             self._finalize_trace(trace_entry, None, error=e)
         

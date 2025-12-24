@@ -1,45 +1,13 @@
 import json
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 from node.base_node import WorkflowNode, NodeExecutionContext
+from node.utils import truncate_output
 from src.workflow_types import WorkflowState
 
 
-MAX_OUTPUT_LENGTH = 1000
-TRUNCATED_SUFFIX = "\n... [输出已截断，原始长度: {original_length} 字符，显示前 {max_length} 字符] ..."
-
-
-def truncate_output(output: Any, max_length: Optional[int] = MAX_OUTPUT_LENGTH) -> Any:
-    """Tool节点的输出截断功能"""
-    if not max_length:
-        return output
-    
-    if isinstance(output, str):
-        output_str = output
-    elif isinstance(output, (dict, list)):
-        output_str = json.dumps(output, ensure_ascii=False)
-    else:
-        output_str = str(output)
-    
-    if len(output_str) <= max_length:
-        return output
-    
-    original_length = len(output_str)
-    truncated_str = output_str[:max_length] + TRUNCATED_SUFFIX.format(
-        original_length=original_length,
-        max_length=max_length
-    )
-    
-    if isinstance(output, str):
-        return truncated_str
-    
-    return {
-        "_truncated": True,
-        "_original_type": type(output).__name__,
-        "_original_length": original_length,
-        "_preview": truncated_str
-    }
+TOOL_MAX_OUTPUT_LENGTH = 10000
 
 
 class ToolNode(WorkflowNode):
@@ -59,7 +27,7 @@ class ToolNode(WorkflowNode):
         raw_input = self.subtask.input if self.subtask.input else {}
         
         try:
-            trace_entry["input"] = truncate_output(raw_input)
+            trace_entry["input"] = truncate_output(raw_input, TOOL_MAX_OUTPUT_LENGTH)
             
             tool_func = self._get_tool_function()
             
@@ -99,7 +67,7 @@ class ToolNode(WorkflowNode):
                     )
                 tool_input = self.context.resolve_dependencies(raw_input, state["outputs"])
             
-            trace_entry["input"] = truncate_output(tool_input)
+            trace_entry["input"] = truncate_output(tool_input, TOOL_MAX_OUTPUT_LENGTH)
             
             result = tool_func(**tool_input)
             result = self._normalize_tool_output(result)
@@ -108,7 +76,7 @@ class ToolNode(WorkflowNode):
             
             state["outputs"][self.subtask.id] = result
             
-            truncated_result = truncate_output(result)
+            truncated_result = truncate_output(result, TOOL_MAX_OUTPUT_LENGTH)
             
             self._finalize_trace(trace_entry, result)
             
@@ -119,7 +87,7 @@ class ToolNode(WorkflowNode):
             state["error"] = str(e)
             
             if tool_input is not None:
-                trace_entry["input"] = truncate_output(tool_input)
+                trace_entry["input"] = truncate_output(tool_input, TOOL_MAX_OUTPUT_LENGTH)
             
             self._finalize_trace(trace_entry, None, error=e)
         

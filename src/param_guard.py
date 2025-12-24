@@ -7,18 +7,20 @@ from typing import Any, Dict, List, Optional
 
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
+from src.config import get_config
 
+INPUT_TRUNCATED_SUFFIX = "\n... [input truncated]"
 logger = logging.getLogger(__name__)
 
 
 class ParamGuard:
     def __init__(self, tool_schemas: Optional[Dict[str, Any]] = None):
-        
+        config = get_config()
         self.llm = ChatOpenAI(
-            api_key=os.getenv("GUARD_KEY"),
-            base_url=os.getenv("GUARD_URL"),
-            model=os.getenv("GUARD_MODEL"),
-            timeout=60,
+            api_key=config.guard_key,
+            base_url=config.guard_url,
+            model=config.guard_model,
+            timeout=config.guard_timeout,
         )
         self.tool_schemas = tool_schemas or {}
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
@@ -52,6 +54,20 @@ class ParamGuard:
             except (json.JSONDecodeError, TypeError):
                 return value
         return value
+
+    @staticmethod
+    def truncate_prompt(prompt: str) -> str:
+        max_len = os.getenv("GUARD_INPUT_MAX_CHARS")
+        if not max_len:
+            return prompt
+        try:
+            limit = int(max_len)
+        except ValueError:
+            return prompt
+        if limit <= 0 or len(prompt) <= limit:
+            return prompt
+        return prompt[:limit] + INPUT_TRUNCATED_SUFFIX
+
 
     def get_input_schema(self, tool_name: Optional[str], mcp_manager=None) -> Dict[str, Any]:
         if not tool_name:
@@ -105,6 +121,7 @@ class ParamGuard:
         try:
             # 直接调用 LLM 进行参数整形
             prompt = self.build_guard_prompt(target_tool, schema, candidate_input, upstream_output)
+            prompt = self.truncate_prompt(prompt)
             response = self.llm.invoke([HumanMessage(content=prompt)])
             fixed_raw = self.strip_think_tags(response.content)
             fixed_input = self.safe_load_json(fixed_raw)

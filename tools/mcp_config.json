@@ -1,76 +1,68 @@
 {
-  "mcpServers": {
-    "bingcnmcp": {
-        "command": "cmd",
-        "args": [
-          "/c",
-          "npx",
-          "bing-cn-mcp"
-      ]
-    },
-     "12306-mcp": {
+    "mcpServers": {
+        "tavily-mcp": {
+            "command": "npx",
+            "args": ["-y", "tavily-mcp@0.1.2"],
+            "env": {
+                "TAVILY_API_KEY": "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"
+        }
+        },
+        "12306-mcp": {
             "command": "npx",
             "args": [
                 "-y",
                 "12306-mcp"
             ]
-    },
-    "fetch": {
-      "args": [
-        "mcp-server-fetch"
-      ],
-      "command": "uvx"
-    },
-    "trends-hub": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "mcp-trends-hub@1.6.0"
-      ]
-    },
-    "mcp-deepwiki": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "mcp-deepwiki@latest"
-      ]
-    },
-    "arxiv-mcp-server": {
-        "command": "uv",
-        "args": [
-            "tool",
-            "run",
-            "arxiv-mcp-server",
-            "--storage-path", "D:/mcpfile"
-        ]
-    },
-     "excel": {
-        "command": "npx",
-        "args": ["--yes", "@negokaz/excel-mcp-server"],
-        "env": {
-            "EXCEL_MCP_PAGING_CELLS_LIMIT": "4000"
+        },
+        "pdf-reader": {
+            "command": "npx",
+            "args": ["@sylphx/pdf-reader-mcp"]
+        },
+        "filesystem": {
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-filesystem",
+                "D:\\ob\\promptops_bad\\task2workflow\\filesystem"
+            ],
+            "command": "npx"
+        },
+        "calculator": {
+            "command": "uvx",
+            "args": [
+                "mcp-server-calculator"
+            ]
+        },
+        "weather": {
+            "command": "uvx",
+            "args": [
+                "--from",
+                "git+https://github.com/microagents/mcp-weather-free.git",
+                "mcp-weather-free"
+            ]
+        },
+        "osm-mcp-server": {
+            "command": "uvx",
+            "args": [
+                "osm-mcp-server"
+            ]
+        },
+        "excel": {
+            "command": "npx",
+            "args": [
+                "--yes",
+                "@negokaz/excel-mcp-server"
+            ],
+            "env": {
+                "EXCEL_MCP_PAGING_CELLS_LIMIT": "4000"
+            }
+        },
+        "word-document-server": {
+            "args": [
+                "--from",
+                "office-word-mcp-server",
+                "word_mcp_server"
+            ],
+            "command": "uvx"
         }
-    },
-    "filesystem": {
-        "args": [
-            "-y",
-            "@modelcontextprotocol/server-filesystem",
-            "D:/mcpfile"
-        ],
-        "command": "npx"
-        
-    },
-    "mcp-server-chart": {
-        "command": "npx",
-        "args": [
-            "-y",
-            "@antv/mcp-server-chart"
-        ]
-    },
-    "mcp-server-time": {
-    "command": "uvx",
-    "args": ["mcp-server-time"]
-  }
-
-  }
+    }   
 }

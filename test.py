@@ -1,13 +1,18 @@
-import yaml
-from jinja2 import Template
+import json  
+from openai import OpenAI
 
-with open("prompt.yaml", "r", encoding="utf-8") as f:
-    cfg = yaml.safe_load(f)
-
-tpl = Template(cfg["template"])
-prompt = tpl.render(
-    tools="(这里是工具列表文本/JSON/YAML都行)",
-    task="(这里是用户任务)"
+client = OpenAI(
+    api_key="sk-nXwEiqnITEqgKKsPPYJMrnEca8oTb9vKrkc9IMnE1HlrTVjJ", # 从https://cloud.siliconflow.cn/account/ak获取
+    base_url="http://api.cipsup.cn/v1"
 )
 
-print(prompt)
+response = client.chat.completions.create(
+        model="Qwen3-32B-no-thinking",
+        messages=[
+            {"role": "system", "content": "You are a travel assistant."},
+            {"role": "user", "content": "生成“南京周末旅行攻略 + 车票推荐”，并以json格式返回。"}
+        ],
+        response_format={"type": "json_object"}
+    )
+
+print(response.choices[0].message.content)

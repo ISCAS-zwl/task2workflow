@@ -1,9 +1,12 @@
 fastapi
+uvicorn[standard]
+python-dotenv
+pydantic
 langchain-core
 langchain-openai
 langgraph
-mcp
 openai
-pydantic
-python-dotenv
-uvicorn[standard]
+numpy
+tqdm
+mcp
+pyyaml

@@ -15,10 +15,8 @@ import uvicorn
 
 from src.subtask_planner import SubtaskPlanner
 from src.graph2workflow import Graph2Workflow
-from tools.extract_mcp_tools import refresh_tool_metadata, ToolExtractionError
+from tools.extract_mcp_tools import refresh_tool_metadata_incremental, ToolExtractionError
 from tools.mcp_manager import MCPToolManager, MCPManagerError
-from dotenv import load_dotenv
-load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -88,8 +86,11 @@ def apply_param_overrides(workflow_ir, param_overrides):
 
 async def _refresh_mcp_tools_background() -> None:
     try:
-        data = await asyncio.to_thread(refresh_tool_metadata)
-        logger.info("MCP 工具列表已更新，共 %s 个工具", len(data))
+        data, added = await asyncio.to_thread(refresh_tool_metadata_incremental)
+        if added:
+            logger.info("MCP 工具列表已增量更新，新增 %s 个工具，共 %s 个工具", added, len(data))
+        else:
+            logger.info("MCP 工具列表未变化，跳过刷新")
     except ToolExtractionError as exc:
         logger.warning("自动刷新 MCP 工具列表失败：%s", exc)
     except Exception as exc:

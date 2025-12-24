@@ -2,6 +2,10 @@
 """
 Task2Workflow 服务启动脚本
 """
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import sys
 from pathlib import Path
 
