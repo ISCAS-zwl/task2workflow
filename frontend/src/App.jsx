@@ -21,60 +21,79 @@ function App() {
   const wsRef = useRef(null)
 
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8000/ws')
-    wsRef.current = ws
+    let ws = null
+    let cancelled = false
 
-    ws.onopen = () => {
-      console.log('WebSocket 连接已建立')
-      setStopRequested(false)
-    }
+    const connect = () => {
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws`)
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      console.log('收到消息:', data)
+      ws.onopen = () => {
+        if (cancelled) {
+          ws.close()
+          return
+        }
+        console.log('WebSocket 连接已建立')
+        wsRef.current = ws
+        setStopRequested(false)
+      }
 
-      switch (data.type) {
-        case 'stage':
-          setCurrentStage(data.stage)
-          break
-        case 'planning':
-          setPlanningData(data.data)
-          if (data.data?.workflow_ir) {
-            setDagData(data.data.workflow_ir)
-          }
-          break
-        case 'dag':
-          setDagData(data.data)
-          break
-        case 'execution':
-          setExecutionData(prev => [...prev, data.data])
-          break
-        case 'result':
-          setFinalResult(data.data)
-          setCurrentStage('completed')
-          break
-        case 'error':
-          setCurrentStage('completed')
-          setFinalResult(prev => ({
-            outputs: prev?.outputs || {},
-            error: data.message || '执行失败，请检查后端日志。'
-          }))
-          break
-        default:
-          break
+      ws.onmessage = (event) => {
+        if (cancelled) return
+        const data = JSON.parse(event.data)
+        console.log('收到消息:', data)
+
+        switch (data.type) {
+          case 'stage':
+            setCurrentStage(data.stage)
+            break
+          case 'planning':
+            setPlanningData(data.data)
+            if (data.data?.workflow_ir) {
+              setDagData(data.data.workflow_ir)
+            }
+            break
+          case 'dag':
+            setDagData(data.data)
+            break
+          case 'execution':
+            setExecutionData(prev => [...prev, data.data])
+            break
+          case 'result':
+            setFinalResult(data.data)
+            setCurrentStage('completed')
+            break
+          case 'error':
+            setCurrentStage('completed')
+            setFinalResult(prev => ({
+              outputs: prev?.outputs || {},
+              error: data.message || '执行失败，请检查后端日志。'
+            }))
+            break
+          default:
+            break
+        }
+      }
+
+      ws.onerror = (error) => {
+        console.error('WebSocket 错误:', error)
+      }
+
+      ws.onclose = () => {
+        console.log('WebSocket 连接已关闭')
+        if (wsRef.current === ws) {
+          wsRef.current = null
+        }
       }
     }
 
-    ws.onerror = (error) => {
-      console.error('WebSocket 错误:', error)
-    }
-
-    ws.onclose = () => {
-      console.log('WebSocket 连接已关闭')
-    }
+    connect()
 
     return () => {
-      ws.close()
+      cancelled = true
+      if (ws) {
+        ws.close()
+      }
     }
   }, [])
 
