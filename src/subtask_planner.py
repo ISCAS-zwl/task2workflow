@@ -182,7 +182,7 @@ class SubtaskPlanner:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt},
             ],
-            extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+            extra_body={"enable_thinking": False},
         )
 
         content = resp.choices[0].message.content if resp.choices else ""
@@ -349,7 +349,7 @@ class SubtaskPlanner:
                 resp = self.client.chat.completions.create(
                     model=self.model,
                     messages=[{"role": "user", "content": fix_prompt}],
-                    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+                    extra_body={"enable_thinking": False},
                 )
                 raw_json = resp.choices[0].message.content.strip()
                 self.logger.info("Stage 2: retrying JSON fix based on LLM response")

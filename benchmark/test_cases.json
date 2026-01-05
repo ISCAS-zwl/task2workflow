@@ -1,0 +1,456 @@
+{
+  "version": "2.0",
+  "description": "Task2Workflow Benchmark Test Cases - 50 cases across 3 complexity levels",
+  "test_cases": [
+    {
+      "id": "TC001",
+      "task": "获取当前日期",
+      "category": "simple",
+      "description": "单工具调用：获取日期",
+      "expected_tools": ["get-current-date"],
+      "expected_node_count": 1,
+      "timeout": 30
+    },
+    {
+      "id": "TC002",
+      "task": "查询北京的天气",
+      "category": "simple",
+      "description": "单工具调用：天气查询",
+      "expected_tools": ["get_weather_by_city"],
+      "expected_node_count": 1,
+      "timeout": 60
+    },
+    {
+      "id": "TC003",
+      "task": "计算 (256 + 128) * 4",
+      "category": "simple",
+      "description": "单工具调用：数学计算",
+      "expected_tools": ["calculate"],
+      "expected_node_count": 1,
+      "timeout": 30
+    },
+    {
+      "id": "TC004",
+      "task": "搜索最新的人工智能新闻",
+      "category": "simple",
+      "description": "单工具调用：网络搜索",
+      "expected_tools": ["tavily-search"],
+      "expected_node_count": 1,
+      "timeout": 60
+    },
+    {
+      "id": "TC005",
+      "task": "查询上海有哪些火车站",
+      "category": "simple",
+      "description": "单工具调用：车站查询",
+      "expected_tools": ["get-stations-code-in-city"],
+      "expected_node_count": 1,
+      "timeout": 60
+    },
+    {
+      "id": "TC006",
+      "task": "获取当前时间",
+      "category": "simple",
+      "description": "单工具调用：时间获取",
+      "expected_tools": ["get_current_time"],
+      "expected_node_count": 1,
+      "timeout": 30
+    },
+    {
+      "id": "TC007",
+      "task": "查询比特币当前价格",
+      "category": "simple",
+      "description": "单工具调用：加密货币价格",
+      "expected_tools": ["get_ticker_info"],
+      "expected_node_count": 1,
+      "timeout": 60
+    },
+    {
+      "id": "TC008",
+      "task": "生成一个1到100之间的随机整数",
+      "category": "simple",
+      "description": "单工具调用：随机数生成",
+      "expected_tools": ["random_int"],
+      "expected_node_count": 1,
+      "timeout": 30
+    },
+    {
+      "id": "TC009",
+      "task": "查询域名 google.com 的 whois 信息",
+      "category": "simple",
+      "description": "单工具调用：域名查询",
+      "expected_tools": ["whois_domain"],
+      "expected_node_count": 1,
+      "timeout": 60
+    },
+    {
+      "id": "TC010",
+      "task": "搜索关于机器学习的维基百科文章",
+      "category": "simple",
+      "description": "单工具调用：维基百科搜索",
+      "expected_tools": ["search_wikipedia"],
+      "expected_node_count": 1,
+      "timeout": 60
+    },
+    {
+      "id": "TC011",
+      "task": "查询英雄联盟中盖伦的详细信息",
+      "category": "simple",
+      "description": "单工具调用：LOL英雄查询",
+      "expected_tools": ["lol_list_champion_details"],
+      "expected_node_count": 1,
+      "timeout": 60
+    },
+    {
+      "id": "TC012",
+      "task": "列出当前目录下的所有文件",
+      "category": "simple",
+      "description": "单工具调用：目录列表",
+      "expected_tools": ["list_directory"],
+      "expected_node_count": 1,
+      "timeout": 30
+    },
+    {
+      "id": "TC013",
+      "task": "查询北京南站的车站代码",
+      "category": "simple",
+      "description": "单工具调用：车站代码查询",
+      "expected_tools": ["get-station-code-by-names"],
+      "expected_node_count": 1,
+      "timeout": 60
+    },
+    {
+      "id": "TC014",
+      "task": "获取以太坊的价格信息",
+      "category": "simple",
+      "description": "单工具调用：加密货币查询",
+      "expected_tools": ["get_ticker_info"],
+      "expected_node_count": 1,
+      "timeout": 60
+    },
+    {
+      "id": "TC015",
+      "task": "查询 Valorant 游戏中的地图列表",
+      "category": "simple",
+      "description": "单工具调用：游戏地图查询",
+      "expected_tools": ["valorant_list_maps"],
+      "expected_node_count": 1,
+      "timeout": 60
+    },
+    {
+      "id": "TC016",
+      "task": "先获取当前日期，然后查询北京到上海的火车票",
+      "category": "medium",
+      "description": "两步顺序调用：日期+车票查询",
+      "expected_tools": ["get-current-date", "get-station-code-of-citys", "get-tickets"],
+      "expected_node_count": 3,
+      "timeout": 120
+    },
+    {
+      "id": "TC017",
+      "task": "查询上海的天气，并搜索上海今天有什么活动",
+      "category": "medium",
+      "description": "两步并行调用：天气+搜索",
+      "expected_tools": ["get_weather_by_city", "tavily-search"],
+      "expected_node_count": 2,
+      "timeout": 90
+    },
+    {
+      "id": "TC018",
+      "task": "搜索关于量子计算的新闻，然后提取第一个结果的网页内容",
+      "category": "medium",
+      "description": "两步顺序调用：搜索+提取",
+      "expected_tools": ["tavily-search", "tavily-extract"],
+      "expected_node_count": 2,
+      "timeout": 120
+    },
+    {
+      "id": "TC019",
+      "task": "查询苹果公司股票信息和相关新闻",
+      "category": "medium",
+      "description": "两步并行调用：股票+新闻",
+      "expected_tools": ["get_ticker_info", "get_ticker_news"],
+      "expected_node_count": 2,
+      "timeout": 90
+    },
+    {
+      "id": "TC020",
+      "task": "获取北京和上海两个城市的天气对比",
+      "category": "medium",
+      "description": "并行调用同一工具：两城市天气",
+      "expected_tools": ["get_weather_by_city"],
+      "expected_node_count": 2,
+      "timeout": 90
+    },
+    {
+      "id": "TC021",
+      "task": "查询维基百科上关于人工智能的文章摘要",
+      "category": "medium",
+      "description": "两步顺序调用：搜索+获取摘要",
+      "expected_tools": ["search_wikipedia", "get_summary"],
+      "expected_node_count": 2,
+      "timeout": 90
+    },
+    {
+      "id": "TC022",
+      "task": "查询LeetCode每日一题并获取题目详情",
+      "category": "medium",
+      "description": "两步顺序调用：每日题目+详情",
+      "expected_tools": ["get-daily-challenge", "get-problem"],
+      "expected_node_count": 2,
+      "timeout": 90
+    },
+    {
+      "id": "TC023",
+      "task": "查询英雄联盟中排名前10的玩家",
+      "category": "medium",
+      "description": "单工具调用：排行榜查询",
+      "expected_tools": ["lol_list_champion_leaderboard"],
+      "expected_node_count": 1,
+      "timeout": 60
+    },
+    {
+      "id": "TC024",
+      "task": "创建一个新的Word文档并添加标题和一段文字",
+      "category": "medium",
+      "description": "两步顺序调用：创建文档+添加内容",
+      "expected_tools": ["create_document", "add_heading", "add_paragraph"],
+      "expected_node_count": 3,
+      "timeout": 90
+    },
+    {
+      "id": "TC025",
+      "task": "查询杭州附近的学校",
+      "category": "medium",
+      "description": "两步调用：地理编码+周边搜索",
+      "expected_tools": ["geocode_address", "find_schools_nearby"],
+      "expected_node_count": 2,
+      "timeout": 90
+    },
+    {
+      "id": "TC026",
+      "task": "获取比特币和以太坊的价格，并计算两者的价格比",
+      "category": "medium",
+      "description": "三步调用：两次价格查询+计算",
+      "expected_tools": ["get_ticker_info", "calculate"],
+      "expected_node_count": 3,
+      "timeout": 90
+    },
+    {
+      "id": "TC027",
+      "task": "查询云顶之弈当前版本的热门阵容",
+      "category": "medium",
+      "description": "单工具调用：TFT阵容查询",
+      "expected_tools": ["tft_list_meta_decks"],
+      "expected_node_count": 1,
+      "timeout": 60
+    },
+    {
+      "id": "TC028",
+      "task": "搜索最新的科技新闻并获取前3篇文章的内容",
+      "category": "medium",
+      "description": "两步顺序调用：搜索+批量提取",
+      "expected_tools": ["tavily-search", "tavily-extract"],
+      "expected_node_count": 2,
+      "timeout": 120
+    },
+    {
+      "id": "TC029",
+      "task": "将纽约时间转换为北京时间",
+      "category": "medium",
+      "description": "两步调用：获取时间+转换",
+      "expected_tools": ["get_current_time", "convert_time"],
+      "expected_node_count": 2,
+      "timeout": 60
+    },
+    {
+      "id": "TC030",
+      "task": "查询从北京到广州的火车路线站点",
+      "category": "medium",
+      "description": "多步调用：查站点代码+查车次+查路线",
+      "expected_tools": ["get-station-code-of-citys", "get-tickets", "get-train-route-stations"],
+      "expected_node_count": 3,
+      "timeout": 120
+    },
+    {
+      "id": "TC031",
+      "task": "查询英雄联盟中适合中单位置的热门英雄及其装备推荐",
+      "category": "medium",
+      "description": "两步调用：位置英雄+装备",
+      "expected_tools": ["lol_list_lane_meta_champions", "lol_get_champion_analysis"],
+      "expected_node_count": 2,
+      "timeout": 90
+    },
+    {
+      "id": "TC032",
+      "task": "读取一个PDF文件并总结其内容",
+      "category": "medium",
+      "description": "两步调用：读取+LLM总结",
+      "expected_tools": ["read_pdf"],
+      "expected_node_count": 2,
+      "timeout": 120
+    },
+    {
+      "id": "TC033",
+      "task": "搜索博物馆藏品中关于青铜器的物品",
+      "category": "medium",
+      "description": "单工具调用：博物馆搜索",
+      "expected_tools": ["search-museum-objects"],
+      "expected_node_count": 1,
+      "timeout": 60
+    },
+    {
+      "id": "TC034",
+      "task": "查询Valorant游戏中的特工列表并获取其技能数据",
+      "category": "medium",
+      "description": "单工具调用：特工查询",
+      "expected_tools": ["valorant_list_agents"],
+      "expected_node_count": 1,
+      "timeout": 60
+    },
+    {
+      "id": "TC035",
+      "task": "生成5个不重复的随机数并计算它们的平均值",
+      "category": "medium",
+      "description": "两步调用：生成随机数+计算",
+      "expected_tools": ["random_sample", "calculate"],
+      "expected_node_count": 2,
+      "timeout": 60
+    },
+    {
+      "id": "TC036",
+      "task": "查询北京、上海、广州三个城市的天气，对比温度差异，并搜索最适合旅游的城市攻略",
+      "category": "complex",
+      "description": "多步复杂调用：多城市天气+分析+搜索",
+      "expected_tools": ["get_weather_by_city", "tavily-search"],
+      "expected_node_count": 5,
+      "timeout": 180
+    },
+    {
+      "id": "TC037",
+      "task": "查询今天北京到上海的高铁票，筛选出最早出发的班次，并查询该班次的途经站点",
+      "category": "complex",
+      "description": "多步复杂调用：日期+车票+筛选+路线",
+      "expected_tools": ["get-current-date", "get-station-code-of-citys", "get-tickets", "get-train-route-stations"],
+      "expected_node_count": 4,
+      "timeout": 180
+    },
+    {
+      "id": "TC038",
+      "task": "搜索关于GPT-4的最新论文，提取网页内容，然后用维基百科补充相关背景知识",
+      "category": "complex",
+      "description": "多步复杂调用：搜索+提取+维基百科",
+      "expected_tools": ["tavily-search", "tavily-extract", "search_wikipedia", "get_summary"],
+      "expected_node_count": 4,
+      "timeout": 180
+    },
+    {
+      "id": "TC039",
+      "task": "创建一份旅游攻略文档：先查询目的地天气，搜索景点信息，然后生成Word文档包含标题、天气信息和景点列表",
+      "category": "complex",
+      "description": "多步复杂调用：天气+搜索+创建文档+添加内容",
+      "expected_tools": ["get_weather_by_city", "tavily-search", "create_document", "add_heading", "add_paragraph"],
+      "expected_node_count": 5,
+      "timeout": 180
+    },
+    {
+      "id": "TC040",
+      "task": "分析加密货币市场：获取比特币、以太坊、狗狗币的价格，计算涨跌幅，并搜索相关市场分析",
+      "category": "complex",
+      "description": "多步复杂调用：多币种价格+计算+搜索",
+      "expected_tools": ["get_ticker_info", "calculate", "tavily-search"],
+      "expected_node_count": 5,
+      "timeout": 180
+    },
+    {
+      "id": "TC041",
+      "task": "规划从北京到上海的商务出行：查询火车票、目的地天气、附近酒店，生成出行报告",
+      "category": "complex",
+      "description": "多步复杂调用：车票+天气+搜索+文档",
+      "expected_tools": ["get-current-date", "get-station-code-of-citys", "get-tickets", "get_weather_by_city", "tavily-search"],
+      "expected_node_count": 5,
+      "timeout": 180
+    },
+    {
+      "id": "TC042",
+      "task": "英雄联盟游戏分析：查询当前版本热门中单英雄，获取其克制关系和出装推荐，并搜索相关攻略",
+      "category": "complex",
+      "description": "多步复杂调用：英雄+克制+装备+搜索",
+      "expected_tools": ["lol_list_lane_meta_champions", "lol_get_champion_analysis", "lol_get_lane_matchup_guide", "tavily-search"],
+      "expected_node_count": 4,
+      "timeout": 180
+    },
+    {
+      "id": "TC043",
+      "task": "技术调研报告：搜索量子计算最新进展，从维基百科获取基础概念，提取相关论文内容，生成调研文档",
+      "category": "complex",
+      "description": "多步复杂调用：搜索+维基+提取+文档",
+      "expected_tools": ["tavily-search", "search_wikipedia", "get_article", "tavily-extract", "create_document"],
+      "expected_node_count": 5,
+      "timeout": 180
+    },
+    {
+      "id": "TC044",
+      "task": "LeetCode刷题助手：获取每日一题，搜索相关解题思路，并在维基百科查询相关算法知识",
+      "category": "complex",
+      "description": "多步复杂调用：每日题+搜索+维基",
+      "expected_tools": ["get-daily-challenge", "get-problem", "tavily-search", "search_wikipedia"],
+      "expected_node_count": 4,
+      "timeout": 180
+    },
+    {
+      "id": "TC045",
+      "task": "房产分析报告：查询某地址的地理位置，分析周边学校、交通和配套设施",
+      "category": "complex",
+      "description": "多步复杂调用：地理编码+学校+交通+分析",
+      "expected_tools": ["geocode_address", "find_schools_nearby", "analyze_commute", "analyze_neighborhood"],
+      "expected_node_count": 4,
+      "timeout": 180
+    },
+    {
+      "id": "TC046",
+      "task": "投资分析：获取5种加密货币的价格历史，计算各自的波动率，并搜索市场预测",
+      "category": "complex",
+      "description": "多步复杂调用：多币种历史+计算+搜索",
+      "expected_tools": ["get_price_history", "calculate", "tavily-search"],
+      "expected_node_count": 7,
+      "timeout": 180
+    },
+    {
+      "id": "TC047",
+      "task": "全国天气预报：同时查询北京、上海、广州、深圳、成都五个城市的天气，生成天气汇总报告文档",
+      "category": "complex",
+      "description": "多步复杂调用：5城市天气+文档生成",
+      "expected_tools": ["get_weather_by_city", "create_document", "add_heading", "add_table"],
+      "expected_node_count": 7,
+      "timeout": 180
+    },
+    {
+      "id": "TC048",
+      "task": "游戏攻略生成器：查询云顶之弈热门阵容，获取核心英雄装备组合，搜索相关运营技巧，生成攻略文档",
+      "category": "complex",
+      "description": "多步复杂调用：阵容+装备+搜索+文档",
+      "expected_tools": ["tft_list_meta_decks", "tft_get_champion_item_build", "tft_list_item_combinations", "tavily-search", "create_document"],
+      "expected_node_count": 5,
+      "timeout": 180
+    },
+    {
+      "id": "TC049",
+      "task": "博物馆参观规划：搜索故宫博物院的藏品信息，获取特定文物详情，并查询参观攻略",
+      "category": "complex",
+      "description": "多步复杂调用：部门列表+搜索藏品+详情+攻略",
+      "expected_tools": ["list-departments", "search-museum-objects", "get-museum-object", "tavily-search"],
+      "expected_node_count": 4,
+      "timeout": 180
+    },
+    {
+      "id": "TC050",
+      "task": "多城市出行规划：分别查询北京到上海、上海到杭州、杭州到南京的火车票，比较价格和时间",
+      "category": "complex",
+      "description": "多步复杂调用：多段行程车票查询+比较",
+      "expected_tools": ["get-current-date", "get-station-code-of-citys", "get-tickets"],
+      "expected_node_count": 7,
+      "timeout": 180
+    }
+  ]
+}

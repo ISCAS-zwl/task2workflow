@@ -26,13 +26,13 @@ class TaskOptimizer:
 
 请分析该任务，并补全以下可能缺失的信息：
 1. **时间范围**: 如果任务涉及时间序列数据（如"过去X天"、"最近X个月"），但用户未明确指定，请根据常识补充合理的默认值
-2. **输出格式**: 如果任务需要保存结果（如"保存为文件"），但未指定格式，请补充常见格式（Excel/CSV/JSON/图表等）
+2. **输出格式**: 如果任务需要保存结果（如"保存为文件"），在没有明确说明的情况下，直接输出最终结果
 3. **数据范围**: 如果任务涉及数据获取但范围模糊，请明确数量或范围
 4. **操作细节**: 如果任务包含"分析"、"处理"等模糊动词，请具体化操作步骤
 
 补全规则:
 - 只补充明显缺失且影响任务执行的信息
-- 使用常见的默认值（如时间默认7天、文件格式默认Excel）
+- 使用常见的默认值（如时间默认1天、文件格式默认word）
 - 保持原任务的核心意图不变
 - 如果原任务已经足够明确，直接返回原任务
 
@@ -57,7 +57,7 @@ class TaskOptimizer:
                 ],
                 temperature=0.3,
                 max_tokens=500,
-                extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+                extra_body={"enable_thinking": False},
             )
             
             optimized_task = resp.choices[0].message.content.strip() if resp.choices else ""

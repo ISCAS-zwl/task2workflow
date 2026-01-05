@@ -1,0 +1,209 @@
+{
+  "generated_at": "2026-01-05T10:37:34.289708",
+  "summary": {
+    "total_cases": 50,
+    "successful_cases": 27,
+    "failed_cases": 23,
+    "accuracy": {
+      "dag_valid_rate": 1.0,
+      "tool_f1": 0.8281305114638448
+    },
+    "efficiency": {
+      "planning_latency_ms": 28617.255449295044,
+      "execution_latency_ms": 24398.64149570465
+    },
+    "quality": {
+      "node_success_rate": 0.8181695526695526,
+      "task_completion_rate": 0.68
+    },
+    "by_category": {
+      "simple": {
+        "total": 15,
+        "success": 13,
+        "failed": 2,
+        "success_rate": 0.8666666666666667,
+        "avg_planning_latency_ms": 14829.37904993693,
+        "avg_execution_latency_ms": 10284.63191986084
+      },
+      "medium": {
+        "total": 20,
+        "success": 10,
+        "failed": 10,
+        "success_rate": 0.5,
+        "avg_planning_latency_ms": 24119.738507270813,
+        "avg_execution_latency_ms": 24986.765801906586
+      },
+      "complex": {
+        "total": 15,
+        "success": 4,
+        "failed": 11,
+        "success_rate": 0.26666666666666666,
+        "avg_planning_latency_ms": 48401.82110468546,
+        "avg_execution_latency_ms": 37728.485329945885
+      }
+    }
+  },
+  "failed_cases": [
+    {
+      "id": "TC002",
+      "task": "查询北京的天气",
+      "error": null
+    },
+    {
+      "id": "TC015",
+      "task": "查询 Valorant 游戏中的地图列表",
+      "error": null
+    },
+    {
+      "id": "TC016",
+      "task": "先获取当前日期，然后查询北京到上海的火车票",
+      "error": null
+    },
+    {
+      "id": "TC017",
+      "task": "查询上海的天气，并搜索上海今天有什么活动",
+      "error": null
+    },
+    {
+      "id": "TC020",
+      "task": "获取北京和上海两个城市的天气对比",
+      "error": null
+    },
+    {
+      "id": "TC023",
+      "task": "查询英雄联盟中排名前10的玩家",
+      "error": null
+    },
+    {
+      "id": "TC025",
+      "task": "查询杭州附近的学校",
+      "error": null
+    },
+    {
+      "id": "TC030",
+      "task": "查询从北京到广州的火车路线站点",
+      "error": null
+    },
+    {
+      "id": "TC032",
+      "task": "读取一个PDF文件并总结其内容",
+      "error": null
+    },
+    {
+      "id": "TC033",
+      "task": "搜索博物馆藏品中关于青铜器的物品",
+      "error": null
+    },
+    {
+      "id": "TC034",
+      "task": "查询Valorant游戏中的特工列表并获取其技能数据",
+      "error": null
+    },
+    {
+      "id": "TC035",
+      "task": "生成5个不重复的随机数并计算它们的平均值",
+      "error": null
+    },
+    {
+      "id": "TC036",
+      "task": "查询北京、上海、广州三个城市的天气，对比温度差异，并搜索最适合旅游的城市攻略",
+      "error": null
+    },
+    {
+      "id": "TC037",
+      "task": "查询今天北京到上海的高铁票，筛选出最早出发的班次，并查询该班次的途经站点",
+      "error": null
+    },
+    {
+      "id": "TC039",
+      "task": "创建一份旅游攻略文档：先查询目的地天气，搜索景点信息，然后生成Word文档包含标题、天气信息和景点列表",
+      "error": null
+    },
+    {
+      "id": "TC040",
+      "task": "分析加密货币市场：获取比特币、以太坊、狗狗币的价格，计算涨跌幅，并搜索相关市场分析",
+      "error": null
+    },
+    {
+      "id": "TC041",
+      "task": "规划从北京到上海的商务出行：查询火车票、目的地天气、附近酒店，生成出行报告",
+      "error": null
+    },
+    {
+      "id": "TC044",
+      "task": "LeetCode刷题助手：获取每日一题，搜索相关解题思路，并在维基百科查询相关算法知识",
+      "error": null
+    },
+    {
+      "id": "TC045",
+      "task": "房产分析报告：查询某地址的地理位置，分析周边学校、交通和配套设施",
+      "error": null
+    },
+    {
+      "id": "TC047",
+      "task": "全国天气预报：同时查询北京、上海、广州、深圳、成都五个城市的天气，生成天气汇总报告文档",
+      "error": null
+    },
+    {
+      "id": "TC048",
+      "task": "游戏攻略生成器：查询云顶之弈热门阵容，获取核心英雄装备组合，搜索相关运营技巧，生成攻略文档",
+      "error": null
+    },
+    {
+      "id": "TC049",
+      "task": "博物馆参观规划：搜索故宫博物院的藏品信息，获取特定文物详情，并查询参观攻略",
+      "error": null
+    },
+    {
+      "id": "TC050",
+      "task": "多城市出行规划：分别查询北京到上海、上海到杭州、杭州到南京的火车票，比较价格和时间",
+      "error": null
+    }
+  ],
+  "tool_usage": {
+    "get_weather_by_city": 14,
+    "get-station-code-of-citys": 12,
+    "tavily-search": 10,
+    "get-tickets": 8,
+    "get_price_history": 6,
+    "search_wikipedia": 6,
+    "lol_get_champion_analysis": 5,
+    "get_asset_price": 4,
+    "get-current-date": 3,
+    "calculate": 3,
+    "get_current_time": 3,
+    "create_document": 3,
+    "add_paragraph": 3,
+    "lol_list_lane_meta_champions": 3,
+    "find_nearby_places": 3,
+    "tavily-extract": 2,
+    "search": 2,
+    "get-daily-challenge": 2,
+    "add_heading": 2,
+    "find_schools_nearby": 2,
+    "get-train-route-stations": 2,
+    "search-museum-objects": 2,
+    "get-museum-object": 2,
+    "geocode_address": 2,
+    "get-stations-code-in-city": 1,
+    "random_int": 1,
+    "whois_domain": 1,
+    "lol_list_champion_details": 1,
+    "list_directory_with_sizes": 1,
+    "get-station-code-by-names": 1,
+    "valorant_list_maps": 1,
+    "get_ticker_news": 1,
+    "get_summary": 1,
+    "lol_list_champion_leaderboard": 1,
+    "tft_list_meta_decks": 1,
+    "convert_time": 1,
+    "read_pdf": 1,
+    "valorant_list_agents": 1,
+    "random_sample": 1,
+    "get_document_info": 1,
+    "reverse_geocode": 1,
+    "copy_document": 1,
+    "convert_to_pdf": 1,
+    "add_table": 1
+  }
+}

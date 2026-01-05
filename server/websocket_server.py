@@ -9,8 +9,10 @@ from typing import Set
 # 添加项目根目录到Python路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+import uuid
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import uvicorn
 
 from src.subtask_planner import SubtaskPlanner
@@ -99,6 +101,68 @@ async def _refresh_mcp_tools_background() -> None:
 
 app = FastAPI()
 
+UPLOADS_DIR = Path(__file__).parent.parent / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+ALLOWED_EXTENSIONS = {".txt", ".json", ".csv", ".md", ".py", ".js", ".ts", ".html", ".css", ".xml", ".yaml", ".yml", ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp"}
+
+uploaded_files: dict = {}
+
+
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    try:
+        ext = Path(file.filename).suffix.lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            raise HTTPException(status_code=400, detail=f"不支持的文件类型: {ext}")
+        
+        content = await file.read()
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=400, detail=f"文件大小超过限制 ({MAX_FILE_SIZE // 1024 // 1024}MB)")
+        
+        file_id = str(uuid.uuid4())[:8]
+        safe_filename = f"{file_id}_{file.filename}"
+        file_path = UPLOADS_DIR / safe_filename
+        
+        with open(file_path, "wb") as f:
+            f.write(content)
+        
+        file_info = {
+            "file_id": file_id,
+            "filename": file.filename,
+            "path": str(file_path.absolute()),
+            "size": len(content),
+            "mime_type": file.content_type,
+        }
+        uploaded_files[file_id] = file_info
+        logger.info(f"文件上传成功: {file_info}")
+        
+        return JSONResponse(content=file_info)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"文件上传失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"上传失败: {str(e)}")
+
+
+@app.delete("/upload/{file_id}")
+async def delete_file(file_id: str):
+    if file_id not in uploaded_files:
+        raise HTTPException(status_code=404, detail="文件不存在")
+    
+    file_info = uploaded_files.pop(file_id)
+    file_path = Path(file_info["path"])
+    if file_path.exists():
+        file_path.unlink()
+    logger.info(f"文件删除成功: {file_id}")
+    return {"status": "deleted", "file_id": file_id}
+
+
+@app.get("/uploads")
+async def list_uploads():
+    return list(uploaded_files.values())
+
 
 @app.on_event("startup")
 async def _schedule_tool_refresh() -> None:
@@ -176,10 +240,23 @@ async def save_result(final_result, timestamp):
         json.dump(result_data, f, indent=2, ensure_ascii=False)
     logger.info(f"已保存最终结果到: {result_file}")
 
-async def execute_workflow(task: str, param_overrides: dict = None):
+async def execute_workflow(task: str, param_overrides: dict = None, file_ids: list = None):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     tools = {}
     mcp_manager = None
+    
+    files_context = []
+    if file_ids:
+        for fid in file_ids:
+            if fid in uploaded_files:
+                files_context.append(uploaded_files[fid])
+        logger.info(f"工作流关联文件: {[f['filename'] for f in files_context]}")
+    
+    if files_context:
+        file_list = "\n".join([f"- {f['filename']}: {f['path']}" for f in files_context])
+        task = f"{task}\n\n可用文件:\n{file_list}"
+        logger.info(f"任务描述已注入文件信息")
+    
     try:
         mcp_manager = MCPToolManager()
         logger.info("MCP 工具管理器已启用")
@@ -258,6 +335,7 @@ async def execute_workflow(task: str, param_overrides: dict = None):
         # 传递广播回调给 context
         if hasattr(g2w, 'context') and g2w.context:
             g2w.context.broadcast_callback = sync_broadcast_callback
+            g2w.context.files = files_context
         
         # 创建后台任务定期推送
         async def broadcast_worker():
@@ -534,7 +612,8 @@ async def websocket_endpoint(websocket: WebSocket):
             if data["type"] == "start":
                 task = data.get("task", "")
                 param_overrides = data.get("param_overrides", None)
-                asyncio.create_task(execute_workflow(task, param_overrides))
+                file_ids = data.get("file_ids", None)
+                asyncio.create_task(execute_workflow(task, param_overrides, file_ids))
                 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

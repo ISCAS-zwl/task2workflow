@@ -3,6 +3,7 @@ import StatusBar from './components/StatusBar'
 import WorkflowTabs from './components/WorkflowTabs'
 import ExecutionSteps from './components/ExecutionSteps'
 import ResultView from './components/ResultView'
+import FileUpload from './components/FileUpload'
 import { Play, Zap, Square, RotateCcw, Bug, Edit3, Check } from 'lucide-react'
 import './App.css'
 
@@ -18,63 +19,83 @@ function App() {
   const [editMode, setEditMode] = useState(false)
   const [paramOverrides, setParamOverrides] = useState({})
   const [lastExecutedTask, setLastExecutedTask] = useState('')
+  const [uploadedFiles, setUploadedFiles] = useState([])
   const wsRef = useRef(null)
 
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8000/ws')
-    wsRef.current = ws
+    let ws = null
+    let cancelled = false
 
-    ws.onopen = () => {
-      console.log('WebSocket 连接已建立')
-      setStopRequested(false)
-    }
+    const connect = () => {
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws`)
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      console.log('收到消息:', data)
+      ws.onopen = () => {
+        if (cancelled) {
+          ws.close()
+          return
+        }
+        console.log('WebSocket 连接已建立')
+        wsRef.current = ws
+        setStopRequested(false)
+      }
 
-      switch (data.type) {
-        case 'stage':
-          setCurrentStage(data.stage)
-          break
-        case 'planning':
-          setPlanningData(data.data)
-          if (data.data?.workflow_ir) {
-            setDagData(data.data.workflow_ir)
-          }
-          break
-        case 'dag':
-          setDagData(data.data)
-          break
-        case 'execution':
-          setExecutionData(prev => [...prev, data.data])
-          break
-        case 'result':
-          setFinalResult(data.data)
-          setCurrentStage('completed')
-          break
-        case 'error':
-          setCurrentStage('completed')
-          setFinalResult(prev => ({
-            outputs: prev?.outputs || {},
-            error: data.message || '执行失败，请检查后端日志。'
-          }))
-          break
-        default:
-          break
+      ws.onmessage = (event) => {
+        if (cancelled) return
+        const data = JSON.parse(event.data)
+        console.log('收到消息:', data)
+
+        switch (data.type) {
+          case 'stage':
+            setCurrentStage(data.stage)
+            break
+          case 'planning':
+            setPlanningData(data.data)
+            if (data.data?.workflow_ir) {
+              setDagData(data.data.workflow_ir)
+            }
+            break
+          case 'dag':
+            setDagData(data.data)
+            break
+          case 'execution':
+            setExecutionData(prev => [...prev, data.data])
+            break
+          case 'result':
+            setFinalResult(data.data)
+            setCurrentStage('completed')
+            break
+          case 'error':
+            setCurrentStage('completed')
+            setFinalResult(prev => ({
+              outputs: prev?.outputs || {},
+              error: data.message || '执行失败，请检查后端日志。'
+            }))
+            break
+          default:
+            break
+        }
+      }
+
+      ws.onerror = (error) => {
+        console.error('WebSocket 错误:', error)
+      }
+
+      ws.onclose = () => {
+        console.log('WebSocket 连接已关闭')
+        if (wsRef.current === ws) {
+          wsRef.current = null
+        }
       }
     }
 
-    ws.onerror = (error) => {
-      console.error('WebSocket 错误:', error)
-    }
-
-    ws.onclose = () => {
-      console.log('WebSocket 连接已关闭')
-    }
+    connect()
 
     return () => {
-      ws.close()
+      cancelled = true
+      if (ws) {
+        ws.close()
+      }
     }
   }, [])
 
@@ -170,13 +191,13 @@ function App() {
     
     resetWorkflowState()
     setLastExecutedTask(task)
-    setCurrentStage('idle')
+    setCurrentStage('planning')
     
     sendMessage({
       type: 'start',
       task,
       debug: debugMode,
-      // 新任务不传递参数覆盖
+      file_ids: uploadedFiles.map(f => f.file_id),
     })
   }
 
@@ -213,7 +234,7 @@ function App() {
     
     if (confirm(`确认应用 ${editCount} 个节点的参数修改并重新执行工作流？`)) {
       setEditMode(false)
-      setCurrentStage('idle')
+      setCurrentStage('planning')
       
       // 清空之前的执行数据
       setExecutionData([])
@@ -224,7 +245,8 @@ function App() {
         type: 'start',
         task: lastExecutedTask,
         debug: debugMode,
-        param_overrides: paramOverrides
+        param_overrides: paramOverrides,
+        file_ids: uploadedFiles.map(f => f.file_id),
       })
     }
   }
@@ -249,22 +271,25 @@ function App() {
             </div>
           </div>
           <div className="header-right">
-            <input
-              type="text"
-              value={task}
-              onChange={(e) => setTask(e.target.value)}
-              placeholder="输入任务描述，⌘/Ctrl + Enter 即可启动"
-              className="task-input"
-              onKeyDown={(e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                  handleStart()
-                }
-              }}
-            />
-            <button onClick={handleStart} className="primary-button" disabled={!task.trim()}>
-              <Play size={16} />
-              开始执行
-            </button>
+            <div className="input-row">
+              <input
+                type="text"
+                value={task}
+                onChange={(e) => setTask(e.target.value)}
+                placeholder="输入任务描述，⌘/Ctrl + Enter 即可启动"
+                className="task-input"
+                onKeyDown={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                    handleStart()
+                  }
+                }}
+              />
+              <button onClick={handleStart} className="primary-button" disabled={!task.trim()}>
+                <Play size={16} />
+                开始执行
+              </button>
+            </div>
+            <FileUpload files={uploadedFiles} onFilesChange={setUploadedFiles} />
           </div>
         </header>
 

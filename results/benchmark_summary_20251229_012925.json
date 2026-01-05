@@ -1,0 +1,277 @@
+{
+  "generated_at": "2025-12-29T02:38:49.243517",
+  "summary": {
+    "total_cases": 50,
+    "successful_cases": 15,
+    "failed_cases": 35,
+    "accuracy": {
+      "dag_valid_rate": 0.96,
+      "tool_f1": 0.7234779404992171
+    },
+    "efficiency": {
+      "planning_latency_ms": 32848.24906826019,
+      "execution_latency_ms": 52193.30534338951
+    },
+    "quality": {
+      "node_success_rate": 0.7515790343915344,
+      "task_completion_rate": 0.4791666666666667
+    },
+    "by_category": {
+      "simple": {
+        "total": 15,
+        "success": 6,
+        "failed": 9,
+        "success_rate": 0.4,
+        "avg_planning_latency_ms": 17860.04966100057,
+        "avg_execution_latency_ms": 10676.002410741952
+      },
+      "medium": {
+        "total": 20,
+        "success": 5,
+        "failed": 15,
+        "success_rate": 0.25,
+        "avg_planning_latency_ms": 31446.331095695496,
+        "avg_execution_latency_ms": 65157.12916851044
+      },
+      "complex": {
+        "total": 15,
+        "success": 4,
+        "failed": 11,
+        "success_rate": 0.26666666666666666,
+        "avg_planning_latency_ms": 49705.672438939415,
+        "avg_execution_latency_ms": 70889.86945152283
+      }
+    }
+  },
+  "failed_cases": [
+    {
+      "id": "TC002",
+      "task": "查询北京的天气",
+      "error": null
+    },
+    {
+      "id": "TC003",
+      "task": "计算 (256 + 128) * 4",
+      "error": null
+    },
+    {
+      "id": "TC004",
+      "task": "搜索最新的人工智能新闻",
+      "error": null
+    },
+    {
+      "id": "TC005",
+      "task": "查询上海有哪些火车站",
+      "error": null
+    },
+    {
+      "id": "TC007",
+      "task": "查询比特币当前价格",
+      "error": null
+    },
+    {
+      "id": "TC010",
+      "task": "搜索关于机器学习的维基百科文章",
+      "error": "Planning failed: Graph validation failed: 错误 (1):\n  1. 节点 ST2 的 executor 为 'tool'，但 tool_name 为空"
+    },
+    {
+      "id": "TC011",
+      "task": "查询英雄联盟中盖伦的详细信息",
+      "error": null
+    },
+    {
+      "id": "TC014",
+      "task": "获取以太坊的价格信息",
+      "error": "Planning failed: Graph validation failed: 错误 (1):\n  1. 节点 ST2 的 executor 为 'tool'，但 tool_name 为空"
+    },
+    {
+      "id": "TC015",
+      "task": "查询 Valorant 游戏中的地图列表",
+      "error": null
+    },
+    {
+      "id": "TC016",
+      "task": "先获取当前日期，然后查询北京到上海的火车票",
+      "error": null
+    },
+    {
+      "id": "TC018",
+      "task": "搜索关于量子计算的新闻，然后提取第一个结果的网页内容",
+      "error": null
+    },
+    {
+      "id": "TC019",
+      "task": "查询苹果公司股票信息和相关新闻",
+      "error": null
+    },
+    {
+      "id": "TC020",
+      "task": "获取北京和上海两个城市的天气对比",
+      "error": null
+    },
+    {
+      "id": "TC023",
+      "task": "查询英雄联盟中排名前10的玩家",
+      "error": null
+    },
+    {
+      "id": "TC025",
+      "task": "查询杭州附近的学校",
+      "error": null
+    },
+    {
+      "id": "TC026",
+      "task": "获取比特币和以太坊的价格，并计算两者的价格比",
+      "error": null
+    },
+    {
+      "id": "TC027",
+      "task": "查询云顶之弈当前版本的热门阵容",
+      "error": null
+    },
+    {
+      "id": "TC029",
+      "task": "将纽约时间转换为北京时间",
+      "error": null
+    },
+    {
+      "id": "TC030",
+      "task": "查询从北京到广州的火车路线站点",
+      "error": null
+    },
+    {
+      "id": "TC031",
+      "task": "查询英雄联盟中适合中单位置的热门英雄及其装备推荐",
+      "error": null
+    },
+    {
+      "id": "TC032",
+      "task": "读取一个PDF文件并总结其内容",
+      "error": null
+    },
+    {
+      "id": "TC033",
+      "task": "搜索博物馆藏品中关于青铜器的物品",
+      "error": null
+    },
+    {
+      "id": "TC034",
+      "task": "查询Valorant游戏中的特工列表并获取其技能数据",
+      "error": null
+    },
+    {
+      "id": "TC035",
+      "task": "生成5个不重复的随机数并计算它们的平均值",
+      "error": null
+    },
+    {
+      "id": "TC037",
+      "task": "查询今天北京到上海的高铁票，筛选出最早出发的班次，并查询该班次的途经站点",
+      "error": null
+    },
+    {
+      "id": "TC038",
+      "task": "搜索关于GPT-4的最新论文，提取网页内容，然后用维基百科补充相关背景知识",
+      "error": null
+    },
+    {
+      "id": "TC039",
+      "task": "创建一份旅游攻略文档：先查询目的地天气，搜索景点信息，然后生成Word文档包含标题、天气信息和景点列表",
+      "error": null
+    },
+    {
+      "id": "TC040",
+      "task": "分析加密货币市场：获取比特币、以太坊、狗狗币的价格，计算涨跌幅，并搜索相关市场分析",
+      "error": null
+    },
+    {
+      "id": "TC041",
+      "task": "规划从北京到上海的商务出行：查询火车票、目的地天气、附近酒店，生成出行报告",
+      "error": null
+    },
+    {
+      "id": "TC042",
+      "task": "英雄联盟游戏分析：查询当前版本热门中单英雄，获取其克制关系和出装推荐，并搜索相关攻略",
+      "error": null
+    },
+    {
+      "id": "TC044",
+      "task": "LeetCode刷题助手：获取每日一题，搜索相关解题思路，并在维基百科查询相关算法知识",
+      "error": null
+    },
+    {
+      "id": "TC045",
+      "task": "房产分析报告：查询某地址的地理位置，分析周边学校、交通和配套设施",
+      "error": null
+    },
+    {
+      "id": "TC046",
+      "task": "投资分析：获取5种加密货币的价格历史，计算各自的波动率，并搜索市场预测",
+      "error": null
+    },
+    {
+      "id": "TC047",
+      "task": "全国天气预报：同时查询北京、上海、广州、深圳、成都五个城市的天气，生成天气汇总报告文档",
+      "error": null
+    },
+    {
+      "id": "TC050",
+      "task": "多城市出行规划：分别查询北京到上海、上海到杭州、杭州到南京的火车票，比较价格和时间",
+      "error": null
+    }
+  ],
+  "tool_usage": {
+    "tavily-search": 15,
+    "get_weather_by_city": 13,
+    "get-station-code-of-citys": 12,
+    "get_price_history": 8,
+    "get-current-date": 7,
+    "excel_write_to_sheet": 7,
+    "get-tickets": 7,
+    "excel_create_table": 5,
+    "excel_read_sheet": 4,
+    "search_wikipedia": 4,
+    "calculate": 3,
+    "lol_list_lane_meta_champions": 3,
+    "create_document": 3,
+    "add_paragraph": 3,
+    "lol_get_champion_analysis": 3,
+    "excel_format_range": 2,
+    "tavily-extract": 2,
+    "get-daily-challenge": 2,
+    "find_schools_nearby": 2,
+    "get-train-route-stations": 2,
+    "get-museum-object": 2,
+    "find_nearby_places": 2,
+    "get-stations-code-in-city": 1,
+    "get-station-by-telecode": 1,
+    "get_current_time": 1,
+    "get_asset_price": 1,
+    "random_int": 1,
+    "whois_domain": 1,
+    "lol_list_champion_details": 1,
+    "list_directory": 1,
+    "get-station-code-by-names": 1,
+    "valorant_list_maps": 1,
+    "directory_tree": 1,
+    "get_ticker_info": 1,
+    "get_ticker_news": 1,
+    "get_summary": 1,
+    "get_article": 1,
+    "search-problems": 1,
+    "lol_list_champion_leaderboard": 1,
+    "add_heading": 1,
+    "tft_list_meta_decks": 1,
+    "search_and_replace": 1,
+    "convert_time": 1,
+    "read_pdf": 1,
+    "read_text_file": 1,
+    "search-museum-objects": 1,
+    "valorant_list_agents": 1,
+    "random_sample": 1,
+    "summarize_article_for_query": 1,
+    "geocode_address": 1,
+    "analyze_neighborhood": 1,
+    "tft_get_champion_item_build": 1
+  }
+}

@@ -18,7 +18,7 @@
 4. 避免不必要的串行：互不依赖的节点可以并行（不加边）。
 5. 不要新增或删除节点，不要更改节点 id。
 6. 允许多依赖与多后继：source/target 需要支持数组（见 Schema 要求），并与 edges 一致。
-7. 若使用 write_file/excel_* 等写文件工具，路径必须是 D:\ob\promptops_bad\task2workflow\filesystem\... 
+7. 若使用 write_file/word* 等写文件工具，路径必须是 ./filesystem/...
 
 ##Schema 硬性要求(必须严格遵守)##
 

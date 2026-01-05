@@ -1,18 +1,40 @@
+version: '3.8'
+
 services:
   backend:
-    build: .
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    container_name: task2workflow-backend
     ports:
-      - "8000:8000"
-    env_file:
-      - .env
+      - "8182:8182"
+    environment:
+      - PLANNER_KEY=${PLANNER_KEY}
+      - PLANNER_URL=${PLANNER_URL}
+      - PLANNER_MODEL=${PLANNER_MODEL:-gpt-4o}
+      - GUARD_KEY=${GUARD_KEY}
+      - GUARD_URL=${GUARD_URL}
+      - GUARD_MODEL=${GUARD_MODEL}
+      - EMBEDDING_KEY=${EMBEDDING_KEY}
+      - EMBEDDING_URL=${EMBEDDING_URL}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - RETRIEVER_MODE=${RETRIEVER_MODE:-bm25}
     volumes:
+      - ./tools:/app/tools
       - ./track:/app/track
+    restart: unless-stopped
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend.Dockerfile
+    container_name: task2workflow-frontend
     ports:
-      - "3000:80"
+      - "3132:3132"
     depends_on:
       - backend
+    restart: unless-stopped
+
+networks:
+  default:
+    name: task2workflow-network

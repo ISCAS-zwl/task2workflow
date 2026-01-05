@@ -90,7 +90,7 @@ class GuardInjector:
             source_node = node_data_map.get(source_id)
             target_node = node_data_map.get(target_id)
 
-            if source_node and target_node and self._needs_param_guard(target_node):
+            if source_node and target_node and self._needs_param_guard(source_node, target_node):
                 if target_id not in target_guards_map:
                     target_guards_map[target_id] = []
                 target_guards_map[target_id].append({
@@ -100,13 +100,14 @@ class GuardInjector:
 
         return target_guards_map
 
-    def _needs_param_guard(self, target_node_data: Dict[str, Any]) -> bool:
+    def _needs_param_guard(
+        self,
+        source_node_data: Dict[str, Any],
+        target_node_data: Dict[str, Any],
+    ) -> bool:
         if target_node_data.get("executor") != "tool":
             return False
-        
-        target_input = target_node_data.get("input") or {}
-        input_str = json.dumps(target_input, ensure_ascii=False)
-        return bool(re.search(r"\{ST\d+\.output\}", input_str))
+        return source_node_data.get("executor") == "tool"
 
     def _create_guard_node(
         self,

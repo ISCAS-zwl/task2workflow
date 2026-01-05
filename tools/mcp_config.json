@@ -22,7 +22,7 @@
             "args": [
                 "-y",
                 "@modelcontextprotocol/server-filesystem",
-                "D:\\ob\\promptops_bad\\task2workflow\\filesystem"
+                "D:\\ob\\task2workflow\\filesystem"
             ],
             "command": "npx"
         },
@@ -46,16 +46,6 @@
                 "osm-mcp-server"
             ]
         },
-        "excel": {
-            "command": "npx",
-            "args": [
-                "--yes",
-                "@negokaz/excel-mcp-server"
-            ],
-            "env": {
-                "EXCEL_MCP_PAGING_CELLS_LIMIT": "4000"
-            }
-        },
         "word-document-server": {
             "args": [
                 "--from",
@@ -63,6 +53,73 @@
                 "word_mcp_server"
             ],
             "command": "uvx"
+        },
+        "time": {
+            "command": "uvx",
+            "args": [
+                "mcp-server-time"
+            ]
+        },
+         "wikipedia": {
+            "command": "uvx",
+            "args": [
+                "wikipedia-mcp"
+            ]
+        },
+         "Asset_Price_MCP": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "asset-price-mcp"
+            ]
+        },
+        "whois": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@bharathvaj/whois-mcp@latest"
+            ]
+        },
+        "ygocdb": {
+            "command": "npx",
+            "args": [
+                "ygocdb-mcp-server"
+            ]
+        },
+        "coin-flip": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@mcpfun/mcp-server-leetcode"
+            ]
+        },
+        "opgg-mcp": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "supergateway",
+                "--streamableHttp",
+                "https://mcp-api.op.gg/mcp"
+            ]
+        },
+        "met-museum": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "metmuseum-mcp"
+            ]
+        },
+        "yfmcp": {
+            "command": "uvx",
+            "args": [
+                "yfmcp@latest"
+            ]
+        },
+        "random-number": {
+            "command": "uvx",
+            "args": [
+                "random-number-mcp"
+            ]
         }
     }   
 }

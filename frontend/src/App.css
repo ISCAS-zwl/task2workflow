@@ -59,9 +59,16 @@
 
 .header-right {
   display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.input-row {
+  display: flex;
   align-items: center;
   gap: 1rem;
-  flex: 1;
+  width: 100%;
 }
 
 .task-input {

@@ -1,0 +1,328 @@
+{
+  "generated_at": "2025-12-29T10:34:19.045616",
+  "summary": {
+    "total_cases": 50,
+    "successful_cases": 4,
+    "failed_cases": 46,
+    "accuracy": {
+      "dag_valid_rate": 0.92,
+      "tool_f1": 0.7724489795918368
+    },
+    "efficiency": {
+      "planning_latency_ms": 37249.82348442078,
+      "execution_latency_ms": 6816.110709439154
+    },
+    "quality": {
+      "node_success_rate": 0.47895752895752897,
+      "task_completion_rate": 0.13513513513513514
+    },
+    "by_category": {
+      "simple": {
+        "total": 15,
+        "success": 3,
+        "failed": 12,
+        "success_rate": 0.2,
+        "avg_planning_latency_ms": 19957.51323699951,
+        "avg_execution_latency_ms": 7634.378862380981
+      },
+      "medium": {
+        "total": 20,
+        "success": 1,
+        "failed": 19,
+        "success_rate": 0.05,
+        "avg_planning_latency_ms": 36343.86975765228,
+        "avg_execution_latency_ms": 5416.453880422256
+      },
+      "complex": {
+        "total": 15,
+        "success": 0,
+        "failed": 15,
+        "success_rate": 0.0,
+        "avg_planning_latency_ms": 55750.072034200035,
+        "avg_execution_latency_ms": 7638.978123664856
+      }
+    }
+  },
+  "failed_cases": [
+    {
+      "id": "TC002",
+      "task": "查询北京的天气",
+      "error": null
+    },
+    {
+      "id": "TC003",
+      "task": "计算 (256 + 128) * 4",
+      "error": "Execution failed: 无法找到 MCP Server 'excel' 的配置"
+    },
+    {
+      "id": "TC004",
+      "task": "搜索最新的人工智能新闻",
+      "error": null
+    },
+    {
+      "id": "TC005",
+      "task": "查询上海有哪些火车站",
+      "error": null
+    },
+    {
+      "id": "TC006",
+      "task": "获取当前时间",
+      "error": null
+    },
+    {
+      "id": "TC009",
+      "task": "查询域名 google.com 的 whois 信息",
+      "error": null
+    },
+    {
+      "id": "TC010",
+      "task": "搜索关于机器学习的维基百科文章",
+      "error": null
+    },
+    {
+      "id": "TC011",
+      "task": "查询英雄联盟中盖伦的详细信息",
+      "error": null
+    },
+    {
+      "id": "TC012",
+      "task": "列出当前目录下的所有文件",
+      "error": null
+    },
+    {
+      "id": "TC013",
+      "task": "查询北京南站的车站代码",
+      "error": null
+    },
+    {
+      "id": "TC014",
+      "task": "获取以太坊的价格信息",
+      "error": null
+    },
+    {
+      "id": "TC015",
+      "task": "查询 Valorant 游戏中的地图列表",
+      "error": "Execution failed: 无法找到 MCP Server 'excel' 的配置"
+    },
+    {
+      "id": "TC016",
+      "task": "先获取当前日期，然后查询北京到上海的火车票",
+      "error": "Execution failed: 无法找到 MCP Server 'excel' 的配置"
+    },
+    {
+      "id": "TC017",
+      "task": "查询上海的天气，并搜索上海今天有什么活动",
+      "error": null
+    },
+    {
+      "id": "TC018",
+      "task": "搜索关于量子计算的新闻，然后提取第一个结果的网页内容",
+      "error": null
+    },
+    {
+      "id": "TC019",
+      "task": "查询苹果公司股票信息和相关新闻",
+      "error": "Execution failed: 无法找到 MCP Server 'excel' 的配置"
+    },
+    {
+      "id": "TC020",
+      "task": "获取北京和上海两个城市的天气对比",
+      "error": "Planning failed: Graph validation failed: 错误 (1):\n  1. 节点 ID 'ST1_2' 不符合 'ST{数字}' 或 'GUARD{数字}' 格式"
+    },
+    {
+      "id": "TC021",
+      "task": "查询维基百科上关于人工智能的文章摘要",
+      "error": null
+    },
+    {
+      "id": "TC022",
+      "task": "查询LeetCode每日一题并获取题目详情",
+      "error": null
+    },
+    {
+      "id": "TC023",
+      "task": "查询英雄联盟中排名前10的玩家",
+      "error": null
+    },
+    {
+      "id": "TC025",
+      "task": "查询杭州附近的学校",
+      "error": "Planning failed: Graph validation failed: 错误 (1):\n  1. 节点 ST3 的 executor 为 'tool'，但 tool_name 为空"
+    },
+    {
+      "id": "TC026",
+      "task": "获取比特币和以太坊的价格，并计算两者的价格比",
+      "error": null
+    },
+    {
+      "id": "TC027",
+      "task": "查询云顶之弈当前版本的热门阵容",
+      "error": null
+    },
+    {
+      "id": "TC028",
+      "task": "搜索最新的科技新闻并获取前3篇文章的内容",
+      "error": null
+    },
+    {
+      "id": "TC029",
+      "task": "将纽约时间转换为北京时间",
+      "error": "Execution failed: 无法找到 MCP Server 'excel' 的配置"
+    },
+    {
+      "id": "TC030",
+      "task": "查询从北京到广州的火车路线站点",
+      "error": null
+    },
+    {
+      "id": "TC031",
+      "task": "查询英雄联盟中适合中单位置的热门英雄及其装备推荐",
+      "error": null
+    },
+    {
+      "id": "TC032",
+      "task": "读取一个PDF文件并总结其内容",
+      "error": null
+    },
+    {
+      "id": "TC033",
+      "task": "搜索博物馆藏品中关于青铜器的物品",
+      "error": null
+    },
+    {
+      "id": "TC034",
+      "task": "查询Valorant游戏中的特工列表并获取其技能数据",
+      "error": null
+    },
+    {
+      "id": "TC035",
+      "task": "生成5个不重复的随机数并计算它们的平均值",
+      "error": "Planning failed: 3 fix attempts failed: unable to generate valid JSON"
+    },
+    {
+      "id": "TC036",
+      "task": "查询北京、上海、广州三个城市的天气，对比温度差异，并搜索最适合旅游的城市攻略",
+      "error": null
+    },
+    {
+      "id": "TC037",
+      "task": "查询今天北京到上海的高铁票，筛选出最早出发的班次，并查询该班次的途经站点",
+      "error": "Execution failed: 无法找到 MCP Server 'excel' 的配置"
+    },
+    {
+      "id": "TC038",
+      "task": "搜索关于GPT-4的最新论文，提取网页内容，然后用维基百科补充相关背景知识",
+      "error": null
+    },
+    {
+      "id": "TC039",
+      "task": "创建一份旅游攻略文档：先查询目的地天气，搜索景点信息，然后生成Word文档包含标题、天气信息和景点列表",
+      "error": null
+    },
+    {
+      "id": "TC040",
+      "task": "分析加密货币市场：获取比特币、以太坊、狗狗币的价格，计算涨跌幅，并搜索相关市场分析",
+      "error": null
+    },
+    {
+      "id": "TC041",
+      "task": "规划从北京到上海的商务出行：查询火车票、目的地天气、附近酒店，生成出行报告",
+      "error": "Planning failed: Graph validation failed: 错误 (1):\n  1. 存在从起始节点无法到达的节点: ['ST5', 'ST6']\n警告 (2):\n  1. 节点 ST5 声明 source 'ST1'，但 edges 中缺少对应边\n  2. 节点 ST6 声明 source 'ST1'，但 edges 中缺少对应边"
+    },
+    {
+      "id": "TC042",
+      "task": "英雄联盟游戏分析：查询当前版本热门中单英雄，获取其克制关系和出装推荐，并搜索相关攻略",
+      "error": null
+    },
+    {
+      "id": "TC043",
+      "task": "技术调研报告：搜索量子计算最新进展，从维基百科获取基础概念，提取相关论文内容，生成调研文档",
+      "error": null
+    },
+    {
+      "id": "TC044",
+      "task": "LeetCode刷题助手：获取每日一题，搜索相关解题思路，并在维基百科查询相关算法知识",
+      "error": null
+    },
+    {
+      "id": "TC045",
+      "task": "房产分析报告：查询某地址的地理位置，分析周边学校、交通和配套设施",
+      "error": "Execution failed: 无法找到 MCP Server 'excel' 的配置"
+    },
+    {
+      "id": "TC046",
+      "task": "投资分析：获取5种加密货币的价格历史，计算各自的波动率，并搜索市场预测",
+      "error": null
+    },
+    {
+      "id": "TC047",
+      "task": "全国天气预报：同时查询北京、上海、广州、深圳、成都五个城市的天气，生成天气汇总报告文档",
+      "error": null
+    },
+    {
+      "id": "TC048",
+      "task": "游戏攻略生成器：查询云顶之弈热门阵容，获取核心英雄装备组合，搜索相关运营技巧，生成攻略文档",
+      "error": "Execution failed: 无法找到 MCP Server 'excel' 的配置"
+    },
+    {
+      "id": "TC049",
+      "task": "博物馆参观规划：搜索故宫博物院的藏品信息，获取特定文物详情，并查询参观攻略",
+      "error": null
+    },
+    {
+      "id": "TC050",
+      "task": "多城市出行规划：分别查询北京到上海、上海到杭州、杭州到南京的火车票，比较价格和时间",
+      "error": "Execution failed: 无法找到 MCP Server 'excel' 的配置"
+    }
+  ],
+  "tool_usage": {
+    "tavily-search": 15,
+    "get_weather_by_city": 12,
+    "get-station-code-of-citys": 10,
+    "get_price_history": 8,
+    "get-tickets": 6,
+    "excel_write_to_sheet": 5,
+    "search_wikipedia": 5,
+    "get-current-date": 4,
+    "lol_get_champion_analysis": 3,
+    "excel_create_table": 3,
+    "add_paragraph": 3,
+    "get_summary": 2,
+    "tavily-extract": 2,
+    "get-daily-challenge": 2,
+    "create_document": 2,
+    "get-train-route-stations": 2,
+    "lol_list_lane_meta_champions": 2,
+    "get-museum-object": 2,
+    "calculate": 1,
+    "get-stations-code-in-city": 1,
+    "get-station-by-telecode": 1,
+    "get_current_time": 1,
+    "get_asset_price": 1,
+    "random_int": 1,
+    "whois_domain": 1,
+    "lol_list_champion_details": 1,
+    "list_directory_with_sizes": 1,
+    "write_file": 1,
+    "get-station-code-by-names": 1,
+    "valorant_list_maps": 1,
+    "get_ticker_info": 1,
+    "get_ticker_news": 1,
+    "directory_tree": 1,
+    "lol_list_champion_leaderboard": 1,
+    "add_heading": 1,
+    "tft_list_meta_decks": 1,
+    "convert_time": 1,
+    "read_pdf": 1,
+    "edit_file": 1,
+    "search-museum-objects": 1,
+    "valorant_list_agents": 1,
+    "valorant_list_agent_statistics": 1,
+    "geocode_address": 1,
+    "find_schools_nearby": 1,
+    "find_nearby_places": 1,
+    "analyze_commute": 1,
+    "tft_get_champion_item_build": 1,
+    "excel_read_sheet": 1
+  }
+}

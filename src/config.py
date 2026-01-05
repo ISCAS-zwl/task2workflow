@@ -23,6 +23,10 @@ class Config:
         self.guard_url = os.getenv("GUARD_URL")
         self.guard_model = os.getenv("GUARD_MODEL")
         self.guard_timeout = int(os.getenv("GUARD_TIMEOUT", "60"))
+        self.guard_system_prompt = os.getenv(
+            "GUARD_SYSTEM_PROMPT",
+            "你是一个高精度的数据整形专家（Data Shaper）。你的唯一任务是接收上游节点（Upstream Output）的原始信息，并将其转化为下游工具（Target Tool）严格要求的 JSON 入参格式。",
+        )
         self.planner_timeout = int(os.getenv("PLANNER_TIMEOUT", "60"))
         
         self.embedding_key = os.getenv("EMBEDDING_KEY")
