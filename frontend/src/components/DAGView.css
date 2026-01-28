@@ -25,8 +25,8 @@
 }
 
 .custom-node {
-  min-width: 260px;
-  max-width: 300px;
+  min-width: 220px;
+  max-width: 260px;
   background: linear-gradient(135deg, #161b22 0%, #1a1f26 100%);
   border: 2px solid #30363d;
   border-radius: 12px;

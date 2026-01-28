@@ -52,6 +52,12 @@
   background: radial-gradient(circle, rgba(248, 81, 73, 0.35), rgba(62, 31, 31, 0.9));
 }
 
+.step-item.pending .step-line-dot {
+  border-color: rgba(125, 133, 144, 0.5);
+  background: rgba(30, 36, 51, 0.6);
+  opacity: 0.7;
+}
+
 .step-status-icon.running {
   color: #58a6ff;
   animation: spin 1s linear infinite;
@@ -85,6 +91,10 @@
   background: linear-gradient(to bottom, rgba(248, 81, 73, 0.9), rgba(48, 54, 61, 0.2));
 }
 
+.step-item.pending .step-line-vertical {
+  background: rgba(48, 54, 61, 0.3);
+}
+
 .step-content {
   flex: 1;
   border-radius: 18px;
@@ -92,6 +102,11 @@
   background: rgba(11, 16, 25, 0.92);
   box-shadow: 0 15px 35px rgba(2, 4, 10, 0.6);
   overflow: hidden;
+}
+
+.step-item.pending .step-content {
+  opacity: 0.6;
+  border-color: rgba(42, 48, 59, 0.5);
 }
 
 .step-header {

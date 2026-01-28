@@ -11,6 +11,7 @@ import './App.css'
 function App() {
   const [task, setTask] = useState('')
   const [currentStage, setCurrentStage] = useState('idle')
+  const [hasStarted, setHasStarted] = useState(false)
   const [planningData, setPlanningData] = useState(null)
   const [dagData, setDagData] = useState(null)
   const [executionData, setExecutionData] = useState([])
@@ -164,6 +165,7 @@ function App() {
     setParamOverrides({})
     setCurrentRunId(null)
     setLoadedWorkflowName(null)
+    setHasStarted(false)
   }
 
   const handleStart = () => {
@@ -210,6 +212,7 @@ function App() {
     }
 
     setLastExecutedTask(task)
+    setHasStarted(true)
     setCurrentStage('idle')
 
     // run_id 将由后端生成并通过 WebSocket 返回
@@ -249,6 +252,7 @@ function App() {
 
     if (confirm(`确认应用 ${editCount} 个节点的参数修改并重新执行工作流？`)) {
       setEditMode(false)
+      setHasStarted(true)
       setCurrentStage('idle')
 
       // 清空之前的执行数据
@@ -477,8 +481,9 @@ function App() {
         </section>
 
         <div className="status-bar-wrapper">
-          <StatusBar 
+          <StatusBar
             currentStage={currentStage}
+            hasStarted={hasStarted}
             executionData={executionData}
             finalResult={finalResult}
           />
@@ -517,7 +522,7 @@ function App() {
               </span>
             </div>
             <div className="panel-body">
-              <ExecutionSteps data={executionData} />
+              <ExecutionSteps data={executionData} dagData={graphData} />
             </div>
           </div>
 

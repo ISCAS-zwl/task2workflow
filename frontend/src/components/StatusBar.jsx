@@ -2,7 +2,7 @@ import React from 'react'
 import { CheckCircle, Loader, XCircle, Clock } from 'lucide-react'
 import './StatusBar.css'
 
-function StatusBar({ currentStage, executionData, finalResult }) {
+function StatusBar({ currentStage, hasStarted, executionData, finalResult }) {
   const stages = [
     { key: 'idle', label: '待机', icon: Clock },
     { key: 'planning', label: '规划中', icon: Loader },
@@ -28,6 +28,11 @@ function StatusBar({ currentStage, executionData, finalResult }) {
       }
     }
 
+    // 特殊处理：如果已点击开始，idle阶段显示为completed
+    if (stageKey === 'idle' && hasStarted) {
+      return 'completed'
+    }
+
     if (index < currentIndex) {
       return 'completed'
     }
@@ -38,7 +43,11 @@ function StatusBar({ currentStage, executionData, finalResult }) {
   }
 
   const getProgress = () => {
-    if (currentStage === 'idle') return 0
+    if (currentStage === 'idle' && !hasStarted) return 0
+    if (currentStage === 'idle' && hasStarted) {
+      // 已点击开始但还没到planning，显示idle完成的进度
+      return (1 / stages.length) * 100
+    }
     return ((currentIndex + 1) / stages.length) * 100
   }
 

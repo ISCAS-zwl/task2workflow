@@ -1,0 +1,207 @@
+{
+  "nodes": [
+    {
+      "id": "ST1",
+      "name": "获取当前日期",
+      "description": "调用工具 get-current-date 获取当前日期，用于计算“明天”的具体日期。",
+      "executor": "tool",
+      "tool_name": "get-current-date",
+      "source": null,
+      "target": [
+        "GUARD1"
+      ],
+      "output": "当前日期字符串（yyyy-MM-dd格式）",
+      "input": {},
+      "llm_config": null
+    },
+    {
+      "id": "ST2",
+      "name": "获取上海站点代码",
+      "description": "调用工具 get-station-code-of-citys，根据城市名“上海”查询出发地车站代码。",
+      "executor": "tool",
+      "tool_name": "get-station-code-of-citys",
+      "source": null,
+      "target": [
+        "GUARD1"
+      ],
+      "output": "上海对应的车站代码（字符串）",
+      "input": {
+        "citys": "上海"
+      },
+      "llm_config": null
+    },
+    {
+      "id": "ST3",
+      "name": "获取杭州站点代码",
+      "description": "调用工具 get-station-code-of-citys，根据城市名“杭州”查询目的地车站代码。",
+      "executor": "tool",
+      "tool_name": "get-station-code-of-citys",
+      "source": null,
+      "target": [
+        "GUARD1"
+      ],
+      "output": "杭州对应的车站代码（字符串）",
+      "input": {
+        "citys": "杭州"
+      },
+      "llm_config": null
+    },
+    {
+      "id": "ST4",
+      "name": "查询高铁余票",
+      "description": "调用工具 get-tickets，根据计算出的目标日期、上海和杭州的站点代码，筛选高铁（G）车次，查询全天余票及票价信息。",
+      "executor": "tool",
+      "tool_name": "get-tickets",
+      "source": [
+        "GUARD1"
+      ],
+      "target": [
+        "ST5"
+      ],
+      "output": "包含所有车次、时间、座别余票及票价的原始数据",
+      "input": {
+        "__from_guard__": "GUARD1"
+      },
+      "llm_config": null
+    },
+    {
+      "id": "ST5",
+      "name": "格式化输出表格",
+      "description": "使用 LLM 将查询到的余票数据整理成表格形式，包含车次、出发/到达时间、商务座/一等座/二等座的余票数量及票价。",
+      "executor": "llm",
+      "tool_name": null,
+      "source": [
+        "ST4"
+      ],
+      "target": null,
+      "output": "格式化后的余票信息表格",
+      "input": {
+        "prompt": "请根据以下余票数据整理成表格形式，包含车次、出发/到达时间、商务座/一等座/二等座的余票数量及票价：\n{ST4.output}"
+      },
+      "llm_config": null
+    },
+    {
+      "id": "GUARD1",
+      "name": "参数整形: get-tickets",
+      "description": "校验并整形下游工具 get-tickets 的入参",
+      "executor": "param_guard",
+      "tool_name": "get-tickets",
+      "source": [
+        "ST1",
+        "ST2",
+        "ST3"
+      ],
+      "target": [
+        "ST4"
+      ],
+      "output": "整形后的下游工具入参",
+      "input": {
+        "source_nodes": [
+          "ST1",
+          "ST2",
+          "ST3"
+        ],
+        "target_node": "ST4",
+        "target_tool": "get-tickets",
+        "target_input_template": {
+          "date": "{ST1.output}",
+          "fromStation": "{ST2.output}",
+          "toStation": "{ST3.output}",
+          "trainFilterFlags": "G"
+        },
+        "schema": {
+          "type": "object",
+          "properties": {
+            "date": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 10,
+              "description": "查询日期，格式为 \"yyyy-MM-dd\"。如果用户提供的是相对日期（如“明天”），请务必先调用 `get-current-date` 接口获取当前日期，并计算出目标日期。"
+            },
+            "fromStation": {
+              "type": "string",
+              "description": "出发地的 `station_code` 。必须是通过 `get-station-code-by-names` 或 `get-station-code-of-citys` 接口查询得到的编码，严禁直接使用中文地名。"
+            },
+            "toStation": {
+              "type": "string",
+              "description": "到达地的 `station_code` 。必须是通过 `get-station-code-by-names` 或 `get-station-code-of-citys` 接口查询得到的编码，严禁直接使用中文地名。"
+            },
+            "trainFilterFlags": {
+              "type": "string",
+              "pattern": "^[GDZTKOFS]*$",
+              "maxLength": 8,
+              "default": "",
+              "description": "车次筛选条件，默认为空，即不筛选。支持多个标志同时筛选。例如用户说“高铁票”，则应使用 \"G\"。可选标志：[G(高铁/城际),D(动车),Z(直达特快),T(特快),K(快速),O(其他),F(复兴号),S(智能动车组)]"
+            },
+            "earliestStartTime": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 24,
+              "default": 0,
+              "description": "最早出发时间（0-24），默认为0。"
+            },
+            "latestStartTime": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 24,
+              "default": 24,
+              "description": "最迟出发时间（0-24），默认为24。"
+            },
+            "sortFlag": {
+              "type": "string",
+              "default": "",
+              "description": "排序方式，默认为空，即不排序。仅支持单一标识。可选标志：[startTime(出发时间从早到晚), arriveTime(抵达时间从早到晚), duration(历时从短到长)]"
+            },
+            "sortReverse": {
+              "type": "boolean",
+              "default": false,
+              "description": "是否逆向排序结果，默认为false。仅在设置了sortFlag时生效。"
+            },
+            "limitedNum": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0,
+              "description": "返回的余票数量限制，默认为0，即不限制。"
+            },
+            "format": {
+              "type": "string",
+              "pattern": "^(text|csv|json)$",
+              "default": "text",
+              "description": "返回结果格式，默认为text，建议使用text与csv。可选标志：[text, csv, json]"
+            }
+          },
+          "required": [
+            "date",
+            "fromStation",
+            "toStation"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      "llm_config": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "ST4",
+      "target": "ST5"
+    },
+    {
+      "source": "ST1",
+      "target": "GUARD1"
+    },
+    {
+      "source": "ST2",
+      "target": "GUARD1"
+    },
+    {
+      "source": "ST3",
+      "target": "GUARD1"
+    },
+    {
+      "source": "GUARD1",
+      "target": "ST4"
+    }
+  ]
+}
