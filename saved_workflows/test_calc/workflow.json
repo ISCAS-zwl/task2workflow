@@ -1,0 +1,21 @@
+{
+  "execution_trace": [
+    {
+      "node_id": "ST1",
+      "node_name": "计算 1 + 1 表达式",
+      "node_type": "tool",
+      "start_time": "2026-01-25T19:46:08.975550",
+      "status": "success",
+      "tool_name": "calculate",
+      "input": {
+        "expression": "1 + 1"
+      },
+      "end_time": "2026-01-25T19:46:08.982561",
+      "duration_ms": 7.011,
+      "output": 2
+    }
+  ],
+  "total_nodes": 1,
+  "successful_nodes": 1,
+  "failed_nodes": 0
+}

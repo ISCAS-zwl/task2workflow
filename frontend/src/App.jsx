@@ -3,7 +3,9 @@ import StatusBar from './components/StatusBar'
 import WorkflowTabs from './components/WorkflowTabs'
 import ExecutionSteps from './components/ExecutionSteps'
 import ResultView from './components/ResultView'
-import { Play, Zap, Square, RotateCcw, Bug, Edit3, Check } from 'lucide-react'
+import WorkflowSaveDialog from './components/WorkflowSaveDialog'
+import WorkflowBrowser from './components/WorkflowBrowser'
+import { Play, Zap, Square, RotateCcw, Bug, Edit3, Check, Save, FolderOpen } from 'lucide-react'
 import './App.css'
 
 function App() {
@@ -18,6 +20,13 @@ function App() {
   const [editMode, setEditMode] = useState(false)
   const [paramOverrides, setParamOverrides] = useState({})
   const [lastExecutedTask, setLastExecutedTask] = useState('')
+
+  // 工作流保存和加载相关状态
+  const [currentRunId, setCurrentRunId] = useState(null)
+  const [loadedWorkflowName, setLoadedWorkflowName] = useState(null)
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [showBrowser, setShowBrowser] = useState(false)
+
   const wsRef = useRef(null)
 
   useEffect(() => {
@@ -34,6 +43,9 @@ function App() {
       console.log('收到消息:', data)
 
       switch (data.type) {
+        case 'run_id':
+          setCurrentRunId(data.run_id)
+          break
         case 'stage':
           setCurrentStage(data.stage)
           break
@@ -150,14 +162,16 @@ function App() {
     setFinalResult(null)
     setEditMode(false)
     setParamOverrides({})
+    setCurrentRunId(null)
+    setLoadedWorkflowName(null)
   }
 
   const handleStart = () => {
     if (!task.trim()) return
-    
+
     // 检查是否是新任务
     const isNewTask = task !== lastExecutedTask
-    
+
     // 如果有参数覆盖且任务变化，提示用户
     if (isNewTask && Object.keys(paramOverrides).length > 0) {
       const confirmed = confirm(
@@ -167,17 +181,39 @@ function App() {
       )
       if (!confirmed) return
     }
-    
-    resetWorkflowState()
-    setLastExecutedTask(task)
-    setCurrentStage('idle')
-    
-    sendMessage({
+
+    // 准备消息
+    const message = {
       type: 'start',
       task,
       debug: debugMode,
-      // 新任务不传递参数覆盖
-    })
+    }
+
+    // 如果有加载的工作流图且任务没变，直接使用工作流图执行（跳过规划）
+    if (dagData && !isNewTask && loadedWorkflowName) {
+      message.workflow_graph = dagData
+      console.log('使用已加载的工作流图执行，跳过规划阶段')
+    }
+
+    // 清空执行状态但保留 DAG 数据
+    setPlanningData(null)
+    setExecutionData([])
+    setFinalResult(null)
+    setEditMode(false)
+    setParamOverrides({})
+
+    // 如果是新任务，清空之前的工作流信息
+    if (isNewTask) {
+      setDagData(null)
+      setLoadedWorkflowName(null)
+      setCurrentRunId(null)
+    }
+
+    setLastExecutedTask(task)
+    setCurrentStage('idle')
+
+    // run_id 将由后端生成并通过 WebSocket 返回
+    sendMessage(message)
   }
 
   const handleStop = () => {
@@ -205,20 +241,20 @@ function App() {
       alert('没有参数修改需要应用')
       return
     }
-    
+
     if (!lastExecutedTask) {
       alert('没有可重新执行的工作流')
       return
     }
-    
+
     if (confirm(`确认应用 ${editCount} 个节点的参数修改并重新执行工作流？`)) {
       setEditMode(false)
       setCurrentStage('idle')
-      
+
       // 清空之前的执行数据
       setExecutionData([])
       setFinalResult(null)
-      
+
       // 使用上次的任务 + 参数覆盖
       sendMessage({
         type: 'start',
@@ -229,9 +265,101 @@ function App() {
     }
   }
 
-  const progressText = workflowStats.totalNodes
-    ? `${workflowStats.completedNodes}/${workflowStats.totalNodes}`
-    : '--'
+  // 保存工作流
+  const handleSaveWorkflow = async (name, description) => {
+    if (!currentRunId) {
+      throw new Error('没有可保存的工作流执行记录')
+    }
+
+    try {
+      const response = await fetch('http://localhost:8000/workflows', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          run_id: currentRunId,
+          name,
+          description,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || '保存失败')
+      }
+
+      const result = await response.json()
+      setShowSaveDialog(false)
+      setLoadedWorkflowName(name)
+      alert(`工作流 "${name}" 保存成功！`)
+    } catch (error) {
+      throw error
+    }
+  }
+
+  // 加载工作流
+  const handleLoadWorkflow = async (workflowId) => {
+    try {
+      const response = await fetch(`http://localhost:8000/workflows/${workflowId}`)
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || '加载失败')
+      }
+
+      const workflow = await response.json()
+
+      // 重置当前状态
+      resetWorkflowState()
+
+      // 设置加载的工作流数据
+      setTask(workflow.task)
+      setLastExecutedTask(workflow.task)
+      setDagData(workflow.graph)
+      setCurrentStage('dag')
+      setLoadedWorkflowName(workflow.saved_as)
+      setCurrentRunId(workflow.run_id || workflow.id)  // 使用 run_id，如果没有则使用 id
+
+      // 如果有执行结果，也显示出来
+      if (workflow.result?.outputs) {
+        setFinalResult({
+          outputs: workflow.result.outputs,
+          error: workflow.result.error,
+        })
+        setCurrentStage('completed')
+      }
+
+      setShowBrowser(false)
+      alert(`工作流 "${workflow.saved_as}" 加载成功！\n\n✓ 点击"开始执行"将直接使用已保存的工作流图执行（跳过规划）\n✓ 你可以使用"编辑工作流"修改参数\n✓ 如果修改了任务描述，将重新规划工作流`)
+    } catch (error) {
+      throw error
+    }
+  }
+
+  const progressText = useMemo(() => {
+    // 在规划和 DAG 阶段显示不同的进度信息
+    if (currentStage === 'planning') {
+      if (planningData?.current_stage === 'raw_json') {
+        return '生成规划'
+      } else if (planningData?.current_stage === 'workflow_ir') {
+        return '规划完成'
+      } else {
+        return '规划中...'
+      }
+    }
+
+    if (currentStage === 'dag') {
+      return '生成 DAG'
+    }
+
+    // 执行阶段显示节点进度
+    if (workflowStats.totalNodes) {
+      return `${workflowStats.completedNodes}/${workflowStats.totalNodes}`
+    }
+
+    return '--'
+  }, [currentStage, planningData, workflowStats])
 
   const graphData = dagData || planningData?.workflow_ir || null
 
@@ -304,6 +432,22 @@ function App() {
             <button className="ghost-button" onClick={handleClear}>
               <RotateCcw size={14} />
               清屏
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => setShowBrowser(true)}
+            >
+              <FolderOpen size={14} />
+              打开工作流
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => setShowSaveDialog(true)}
+              disabled={!currentRunId || currentStage === 'executing' || currentStage === 'planning'}
+              title={!currentRunId ? '请先执行一个工作流' : '保存当前工作流'}
+            >
+              <Save size={14} />
+              保存工作流
             </button>
             <button
               className={`ghost-button toggle ${editMode ? 'active' : ''}`}
@@ -390,6 +534,24 @@ function App() {
           </div>
         </section>
       </main>
+
+      {/* 工作流保存对话框 */}
+      {showSaveDialog && (
+        <WorkflowSaveDialog
+          currentRunId={currentRunId}
+          loadedWorkflowName={loadedWorkflowName}
+          onSave={handleSaveWorkflow}
+          onClose={() => setShowSaveDialog(false)}
+        />
+      )}
+
+      {/* 工作流浏览器 */}
+      {showBrowser && (
+        <WorkflowBrowser
+          onLoadWorkflow={handleLoadWorkflow}
+          onClose={() => setShowBrowser(false)}
+        />
+      )}
     </div>
   )
 }

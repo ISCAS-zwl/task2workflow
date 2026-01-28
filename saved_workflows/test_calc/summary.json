@@ -1,0 +1,10 @@
+{
+  "run_id": "20260125_194538",
+  "saved_as": "test_calc",
+  "saved_at": "2026-01-25T12:31:51.144358Z",
+  "task": "1+1",
+  "outputs": {
+    "ST1": 2
+  },
+  "description": "Simple test"
+}

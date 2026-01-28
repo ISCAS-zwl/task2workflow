@@ -431,7 +431,7 @@ class SubtaskPlanner:
             try:
                 workflow_ir = self._build_workflow_ir(fixed_json)
                 self.last_run["workflow_ir"] = workflow_ir
-                workflow_json_str = workflow_ir.model_dump_json(indent=2, ensure_ascii=False)
+                workflow_json_str = workflow_ir.model_dump_json(indent=2)
                 self.last_run["workflow_json_str"] = workflow_json_str
                 self.logger.info("Stage 3: WorkflowIR generation complete")
             except Exception as e:
@@ -460,4 +460,4 @@ if __name__ == "__main__":
     planner = SubtaskPlanner()
     task = "设计一个在线书店的系统架构"
     workflow_ir = planner.plan(task)
-    print(workflow_ir.model_dump_json(indent=2, ensure_ascii=False))
+    print(workflow_ir.model_dump_json(indent=2))

@@ -9,9 +9,12 @@ from typing import Set
 # 添加项目根目录到Python路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 import uvicorn
+import shutil
 
 from src.subtask_planner import SubtaskPlanner
 from src.graph2workflow import Graph2Workflow
@@ -136,6 +139,25 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 TRACK_DIR = Path(__file__).parent.parent / "track"
+SAVED_WORKFLOWS_DIR = Path(__file__).parent.parent / "saved_workflows"
+
+# 确保目录存在
+SAVED_WORKFLOWS_DIR.mkdir(parents=True, exist_ok=True)
+
+# 请求模型
+class SaveWorkflowRequest(BaseModel):
+    run_id: str
+    name: str
+    description: str = ""
+
+class LoadWorkflowResponse(BaseModel):
+    id: str
+    saved_as: str
+    task: str
+    saved_at: str
+    description: str
+    graph: dict
+    result: dict
 
 async def save_graph(workflow_ir, timestamp):
     session_dir = TRACK_DIR / timestamp
@@ -176,8 +198,28 @@ async def save_result(final_result, timestamp):
         json.dump(result_data, f, indent=2, ensure_ascii=False)
     logger.info(f"已保存最终结果到: {result_file}")
 
-async def execute_workflow(task: str, param_overrides: dict = None):
+async def execute_workflow(task: str, param_overrides: dict = None, workflow_graph: dict = None):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # 创建会话目录并保存元数据
+    session_dir = TRACK_DIR / timestamp
+    session_dir.mkdir(parents=True, exist_ok=True)
+
+    meta_data = {
+        "task": task,
+        "param_overrides": param_overrides or {},
+        "created_at": timestamp,
+        "reuse_workflow": workflow_graph is not None
+    }
+    with open(session_dir / "meta.json", "w", encoding="utf-8") as f:
+        json.dump(meta_data, f, indent=2, ensure_ascii=False)
+
+    # 广播 run_id 给前端
+    await manager.broadcast({
+        "type": "run_id",
+        "run_id": timestamp
+    })
+
     tools = {}
     mcp_manager = None
     try:
@@ -185,62 +227,82 @@ async def execute_workflow(task: str, param_overrides: dict = None):
         logger.info("MCP 工具管理器已启用")
     except MCPManagerError as exc:
         logger.warning("MCP 工具不可用: %s", exc)
-    
+
     # 记录参数覆盖信息
     if param_overrides:
         logger.info(f"应用参数覆盖: {param_overrides}")
-    
+
     try:
         await manager.broadcast({
             "type": "stage",
             "stage": "planning"
         })
-        
-        logger.info(f"开始规划任务: {task}")
-        planner = SubtaskPlanner()
-        
-        await manager.broadcast({
-            "type": "planning",
-            "data": {
-                "current_stage": "raw_json",
-                "raw_json": None,
-                "fixed_json": None,
-                "workflow_ir": None
-            }
-        })
-        
-        workflow_ir = planner.plan(task)
-        last_run = planner.get_last_run()
-        
+
+        # 如果提供了工作流图，直接使用，跳过规划阶段
+        if workflow_graph:
+            logger.info("使用已有的工作流图，跳过规划阶段")
+            from src.subtask_planner import WorkflowIR
+            workflow_ir = WorkflowIR(**workflow_graph)
+
+            # 保存一个简化的规划数据
+            await manager.broadcast({
+                "type": "planning",
+                "data": {
+                    "current_stage": "workflow_ir",
+                    "raw_json": None,
+                    "fixed_json": None,
+                    "workflow_ir": workflow_ir.model_dump(),
+                    "reused": True
+                }
+            })
+        else:
+            # 正常规划流程
+            logger.info(f"开始规划任务: {task}")
+            planner = SubtaskPlanner()
+
+            await manager.broadcast({
+                "type": "planning",
+                "data": {
+                    "current_stage": "raw_json",
+                    "raw_json": None,
+                    "fixed_json": None,
+                    "workflow_ir": None
+                }
+            })
+
+            # 使用线程池执行同步的 plan 操作，避免阻塞事件循环
+            workflow_ir = await asyncio.to_thread(planner.plan, task)
+            last_run = planner.get_last_run()
+
+            await manager.broadcast({
+                "type": "planning",
+                "data": {
+                    "current_stage": "workflow_ir",
+                    "raw_json": last_run.get("raw_json"),
+                    "fixed_json": last_run.get("fixed_json"),
+                    "workflow_ir": workflow_ir.model_dump()
+                }
+            })
+
         # 应用参数覆盖
         if param_overrides:
             workflow_ir = apply_param_overrides(workflow_ir, param_overrides)
             logger.info("参数覆盖已应用")
-        
-        await manager.broadcast({
-            "type": "planning",
-            "data": {
-                "current_stage": "workflow_ir",
-                "raw_json": last_run.get("raw_json"),
-                "fixed_json": last_run.get("fixed_json"),
-                "workflow_ir": workflow_ir.model_dump()
-            }
-        })
-        
+
         await manager.broadcast({
             "type": "stage",
             "stage": "dag"
         })
-        
+
         await manager.broadcast({
             "type": "dag",
             "data": workflow_ir.model_dump()
         })
-        
+
         await save_graph(workflow_ir, timestamp)
-        
+
         await asyncio.sleep(0.5)
-        
+
         await manager.broadcast({
             "type": "stage",
             "stage": "executing"
@@ -410,9 +472,10 @@ async def execute_workflow(task: str, param_overrides: dict = None):
                     
                     return state
                 return llm_node
-        
-        result = g2w.execute()
-        
+
+        # 使用线程池执行同步的 execute 操作，避免阻塞事件循环
+        result = await asyncio.to_thread(g2w.execute)
+
         # 停止广播任务
         broadcast_task.cancel()
         try:
@@ -523,6 +586,188 @@ async def execute_workflow(task: str, param_overrides: dict = None):
         if mcp_manager:
             mcp_manager.shutdown()
 
+# REST API 端点
+
+@app.get("/workflows")
+async def list_workflows():
+    """获取所有保存的工作流列表"""
+    workflows = []
+    try:
+        for workflow_dir in SAVED_WORKFLOWS_DIR.iterdir():
+            if workflow_dir.is_dir():
+                summary_file = workflow_dir / "summary.json"
+                if summary_file.exists():
+                    try:
+                        with open(summary_file, "r", encoding="utf-8") as f:
+                            summary = json.load(f)
+                            workflows.append({
+                                "id": workflow_dir.name,  # 使用目录名作为 id，这样前端可以直接用来加载
+                                "run_id": summary.get("run_id", ""),
+                                "saved_as": summary.get("saved_as", workflow_dir.name),
+                                "task": summary.get("task", ""),
+                                "saved_at": summary.get("saved_at", ""),
+                                "description": summary.get("description", "")
+                            })
+                    except Exception as e:
+                        logger.error(f"读取工作流 {workflow_dir.name} 失败: {e}")
+
+        # 按保存时间倒序排列
+        workflows.sort(key=lambda x: x.get("saved_at", ""), reverse=True)
+        return JSONResponse(content=workflows)
+
+    except Exception as e:
+        logger.error(f"获取工作流列表失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/workflows")
+async def save_workflow(request: SaveWorkflowRequest):
+    """保存工作流"""
+    try:
+        # 验证名称格式
+        if not request.name or len(request.name) < 1 or len(request.name) > 50:
+            raise HTTPException(status_code=400, detail="工作流名称长度必须在1-50个字符之间")
+
+        # 不允许的特殊字符（文件系统不支持的字符）
+        import re
+        if re.search(r'[<>:"/\\|?*]', request.name):
+            raise HTTPException(status_code=400, detail="工作流名称不能包含以下字符: < > : \" / \\ | ? *")
+
+        # 检查源工作流是否存在
+        source_dir = TRACK_DIR / request.run_id
+        if not source_dir.exists():
+            raise HTTPException(status_code=404, detail=f"工作流执行记录 {request.run_id} 不存在")
+
+        # 检查是否已存在同名工作流
+        target_dir = SAVED_WORKFLOWS_DIR / request.name
+        if target_dir.exists():
+            raise HTTPException(status_code=409, detail=f"工作流 {request.name} 已存在")
+
+        # 复制工作流文件
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        # 复制核心文件
+        files_to_copy = ["graph.json", "workflow.json", "result.json"]
+        for file_name in files_to_copy:
+            source_file = source_dir / file_name
+            if source_file.exists():
+                shutil.copy2(source_file, target_dir / file_name)
+
+        # 读取任务信息
+        task = ""
+        meta_file = source_dir / "meta.json"
+        if meta_file.exists():
+            with open(meta_file, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+                task = meta.get("task", "")
+
+        # 读取结果信息
+        result_data = {}
+        result_file = target_dir / "result.json"
+        if result_file.exists():
+            with open(result_file, "r", encoding="utf-8") as f:
+                result_data = json.load(f)
+
+        # 创建 summary.json
+        summary = {
+            "run_id": request.run_id,
+            "saved_as": request.name,
+            "saved_at": datetime.now().isoformat() + "Z",
+            "task": task,
+            "description": request.description,
+            "outputs": result_data.get("outputs", {})
+        }
+
+        with open(target_dir / "summary.json", "w", encoding="utf-8") as f:
+            json.dump(summary, f, indent=2, ensure_ascii=False)
+
+        logger.info(f"工作流已保存: {request.name}")
+
+        return JSONResponse(content={
+            "success": True,
+            "message": f"工作流 '{request.name}' 保存成功",
+            "workflow": {
+                "id": request.run_id,
+                "saved_as": request.name,
+                "task": task,
+                "saved_at": summary["saved_at"],
+                "description": request.description
+            }
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"保存工作流失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/workflows/{workflow_name}")
+async def get_workflow(workflow_name: str):
+    """获取特定工作流的详细信息"""
+    try:
+        workflow_dir = SAVED_WORKFLOWS_DIR / workflow_name
+        if not workflow_dir.exists():
+            raise HTTPException(status_code=404, detail=f"工作流 {workflow_name} 不存在")
+
+        # 读取各个文件
+        summary_file = workflow_dir / "summary.json"
+        graph_file = workflow_dir / "graph.json"
+        result_file = workflow_dir / "result.json"
+
+        if not summary_file.exists():
+            raise HTTPException(status_code=404, detail="工作流摘要文件不存在")
+
+        with open(summary_file, "r", encoding="utf-8") as f:
+            summary = json.load(f)
+
+        graph_data = {}
+        if graph_file.exists():
+            with open(graph_file, "r", encoding="utf-8") as f:
+                graph_data = json.load(f)
+
+        result_data = {}
+        if result_file.exists():
+            with open(result_file, "r", encoding="utf-8") as f:
+                result_data = json.load(f)
+
+        return JSONResponse(content={
+            "id": workflow_name,  # 工作流名称（目录名）
+            "run_id": summary.get("run_id", ""),  # 原始执行记录的 run_id
+            "saved_as": summary.get("saved_as", workflow_name),
+            "task": summary.get("task", ""),
+            "saved_at": summary.get("saved_at", ""),
+            "description": summary.get("description", ""),
+            "graph": graph_data,
+            "result": result_data
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取工作流 {workflow_name} 失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/workflows/{workflow_name}")
+async def delete_workflow(workflow_name: str):
+    """删除工作流"""
+    try:
+        workflow_dir = SAVED_WORKFLOWS_DIR / workflow_name
+        if not workflow_dir.exists():
+            raise HTTPException(status_code=404, detail=f"工作流 {workflow_name} 不存在")
+
+        shutil.rmtree(workflow_dir)
+        logger.info(f"工作流已删除: {workflow_name}")
+
+        return JSONResponse(content={
+            "success": True,
+            "message": f"工作流 '{workflow_name}' 已删除"
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"删除工作流 {workflow_name} 失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
@@ -530,11 +775,12 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             data = await websocket.receive_json()
             logger.info(f"收到消息: {data}")
-            
+
             if data["type"] == "start":
                 task = data.get("task", "")
                 param_overrides = data.get("param_overrides", None)
-                asyncio.create_task(execute_workflow(task, param_overrides))
+                workflow_graph = data.get("workflow_graph", None)  # 新增：接收工作流图
+                asyncio.create_task(execute_workflow(task, param_overrides, workflow_graph))
                 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

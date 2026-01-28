@@ -1,0 +1,19 @@
+{
+  "nodes": [
+    {
+      "id": "ST1",
+      "name": "计算 1 + 1 表达式",
+      "description": "调用工具 calculate，传入表达式 \"1 + 1\" 进行计算。",
+      "executor": "tool",
+      "tool_name": "calculate",
+      "source": null,
+      "target": null,
+      "output": "计算结果（数值）",
+      "input": {
+        "expression": "1 + 1"
+      },
+      "llm_config": null
+    }
+  ],
+  "edges": []
+}

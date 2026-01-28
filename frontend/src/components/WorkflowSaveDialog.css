@@ -1,0 +1,219 @@
+.workflow-save-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.workflow-save-dialog {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.workflow-save-dialog .dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.5rem;
+  border-bottom: 1px solid #30363d;
+}
+
+.workflow-save-dialog .dialog-header h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #e6edf3;
+  margin: 0 0 0.25rem 0;
+}
+
+.workflow-save-dialog .dialog-subtitle {
+  font-size: 0.875rem;
+  color: #7d8590;
+  margin: 0;
+}
+
+.workflow-save-dialog .close-button {
+  background: transparent;
+  border: none;
+  color: #7d8590;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.workflow-save-dialog .close-button:hover {
+  color: #e6edf3;
+  background: #21262d;
+}
+
+.workflow-save-dialog .dialog-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.field-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #e6edf3;
+}
+
+.field-label .required {
+  color: #f85149;
+  margin-left: 0.25rem;
+}
+
+.field-input,
+.field-textarea {
+  padding: 0.75rem;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  color: #e6edf3;
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.field-input:focus,
+.field-textarea:focus {
+  outline: none;
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+}
+
+.field-input::placeholder,
+.field-textarea::placeholder {
+  color: #484f58;
+}
+
+.field-input.error {
+  border-color: #f85149;
+}
+
+.field-input.error:focus {
+  box-shadow: 0 0 0 2px rgba(248, 81, 73, 0.2);
+}
+
+.field-textarea {
+  resize: vertical;
+  min-height: 100px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.field-hint {
+  font-size: 0.75rem;
+  color: #7d8590;
+  margin: 0;
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid rgba(248, 81, 73, 0.3);
+  border-radius: 8px;
+  color: #ff9f90;
+  font-size: 0.875rem;
+}
+
+.workflow-save-dialog .dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  border-top: 1px solid #30363d;
+}
+
+.workflow-save-dialog .cancel-btn,
+.workflow-save-dialog .save-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.workflow-save-dialog .cancel-btn {
+  background: transparent;
+  border: 1px solid #30363d;
+  color: #e6edf3;
+}
+
+.workflow-save-dialog .cancel-btn:hover:not(:disabled) {
+  background: #21262d;
+}
+
+.workflow-save-dialog .save-btn {
+  background: #238636;
+  border: 1px solid #238636;
+  color: #fff;
+}
+
+.workflow-save-dialog .save-btn:hover:not(:disabled) {
+  background: #2ea043;
+  border-color: #2ea043;
+}
+
+.workflow-save-dialog .save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.workflow-save-dialog .cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
