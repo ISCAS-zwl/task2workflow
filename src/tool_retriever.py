@@ -261,7 +261,16 @@ class SemanticRetriever:
         ranked = self.retrieve(task, top_k=top_k)
         if not ranked:
             return None
-        return {name: self.tools_data[name] for name, _score in ranked}
+        result = {name: self.tools_data[name] for name, _score in ranked}
+
+        # 添加固定工具
+        pinned_tools = self.config.pinned_tools
+        for tool_name in pinned_tools:
+            if tool_name in self.tools_data and tool_name not in result:
+                result[tool_name] = self.tools_data[tool_name]
+                logger.info(f"Added pinned tool: {tool_name}")
+
+        return result
 
 
 class ToolRetriever:
@@ -349,9 +358,22 @@ class ToolRetriever:
 
     def retrieve_subset(self, task: str, top_k: int = 20) -> Optional[Dict[str, Any]]:
         if self.semantic_retriever:
-            return self.semantic_retriever.retrieve_subset(task, top_k=top_k)
-        
-        ranked = self.retrieve(task, top_k=top_k)
-        if not ranked:
-            return None
-        return {name: self.tools_data[name] for name, _score in ranked}
+            result = self.semantic_retriever.retrieve_subset(task, top_k=top_k)
+        else:
+            ranked = self.retrieve(task, top_k=top_k)
+            if not ranked:
+                result = None
+            else:
+                result = {name: self.tools_data[name] for name, _score in ranked}
+
+        if result is None:
+            result = {}
+
+        # 添加固定工具
+        pinned_tools = self.config.pinned_tools
+        for tool_name in pinned_tools:
+            if tool_name in self.tools_data and tool_name not in result:
+                result[tool_name] = self.tools_data[tool_name]
+                logger.info(f"Added pinned tool: {tool_name}")
+
+        return result if result else None

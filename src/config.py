@@ -39,6 +39,10 @@ class Config:
         self.log_truncate_length = int(os.getenv("LOG_TRUNCATE_LENGTH", "500"))
         self.fix_prompt_truncate_length = int(os.getenv("FIX_PROMPT_TRUNCATE_LENGTH", "1500"))
 
+        # 固定工具列表：这些工具总是会被包含在检索结果中
+        pinned_tools_str = os.getenv("PINNED_TOOLS", "tavily-search")
+        self.pinned_tools = [t.strip() for t in pinned_tools_str.split(",") if t.strip()]
+
 
 _default_config: Optional[Config] = None
 

@@ -195,9 +195,27 @@ class Graph2Workflow:
         else:
             self.logger.warning("未找到起点节点")
 
+        # 统计每个节点的入边数量
+        incoming_edges = {}
+        for edge in self.workflow_ir.edges:
+            if edge.target not in incoming_edges:
+                incoming_edges[edge.target] = []
+            incoming_edges[edge.target].append(edge.source)
+
+        # 为有多个入边的节点使用列表形式的 add_edge
+        processed_targets = set()
+        for target_node_id, sources in incoming_edges.items():
+            if len(sources) > 1:
+                # 使用列表形式的 add_edge，LangGraph 会等待所有源节点完成
+                workflow.add_edge(sources, target_node_id)
+                self.logger.info(f"添加多源边: {sources} -> {target_node_id}")
+                processed_targets.add(target_node_id)
+
+        # 为单入边节点添加边
         for edge in self.workflow_ir.edges:
             if edge.source in node_map and edge.target in node_map:
-                workflow.add_edge(edge.source, edge.target)
+                if edge.target not in processed_targets:
+                    workflow.add_edge(edge.source, edge.target)
 
         end_nodes = [n for n in self.workflow_ir.nodes if not n.target or n.target == "null"]
         for node in end_nodes:

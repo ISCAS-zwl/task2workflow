@@ -1,0 +1,228 @@
+{
+  "nodes": [
+    {
+      "id": "ST1",
+      "name": "获取当前日期",
+      "description": "调用工具 get-current-date，获取当前日期（yyyy-MM-dd格式），以便计算“明天”的具体日期。",
+      "executor": "tool",
+      "tool_name": "get-current-date",
+      "source": null,
+      "target": [
+        "GUARD1"
+      ],
+      "output": "当前日期字符串",
+      "input": {},
+      "llm_config": null
+    },
+    {
+      "id": "ST2",
+      "name": "获取北京站点代码",
+      "description": "调用工具 get-station-code-of-citys，传入城市名“北京”，获取出发地对应的站点代码。",
+      "executor": "tool",
+      "tool_name": "get-station-code-of-citys",
+      "source": null,
+      "target": [
+        "GUARD1"
+      ],
+      "output": "北京城市的站点代码",
+      "input": {
+        "citys": "北京"
+      },
+      "llm_config": null
+    },
+    {
+      "id": "ST3",
+      "name": "获取南京站点代码",
+      "description": "调用工具 get-station-code-of-citys，传入城市名“南京”，获取目的地对应的站点代码。",
+      "executor": "tool",
+      "tool_name": "get-station-code-of-citys",
+      "source": null,
+      "target": [
+        "GUARD1"
+      ],
+      "output": "南京城市的站点代码",
+      "input": {
+        "citys": "南京"
+      },
+      "llm_config": null
+    },
+    {
+      "id": "ST4",
+      "name": "查询火车票余票",
+      "description": "调用工具 get-tickets，根据当前日期计算出的明天日期、以及获取到的北京和南京站点代码，查询从北京到南京的火车票余票。",
+      "executor": "tool",
+      "tool_name": "get-tickets",
+      "source": [
+        "GUARD1"
+      ],
+      "target": [
+        "ST6"
+      ],
+      "output": "火车票余票列表（包含车次、时间、票价等信息）",
+      "input": {
+        "__from_guard__": "GUARD1"
+      },
+      "llm_config": null
+    },
+    {
+      "id": "ST5",
+      "name": "搜索南京旅游景点",
+      "description": "调用工具 tavily-search，搜索“南京热门旅游景点推荐”，设置结果数量限制为10个，获取景点名称及介绍。",
+      "executor": "tool",
+      "tool_name": "tavily-search",
+      "source": null,
+      "target": [
+        "ST6"
+      ],
+      "output": "南京热门旅游景点列表（包含名称和简介）",
+      "input": {
+        "query": "南京热门旅游景点推荐",
+        "max_results": 10
+      },
+      "llm_config": null
+    },
+    {
+      "id": "ST6",
+      "name": "生成旅游攻略",
+      "description": "使用 LLM 整合火车票查询结果和景点推荐信息，生成一份包含交通安排和景点介绍的旅游攻略。",
+      "executor": "llm",
+      "tool_name": null,
+      "source": [
+        "ST4",
+        "ST5"
+      ],
+      "target": null,
+      "output": "完整的南京旅游攻略文本",
+      "input": {
+        "prompt": "请根据以下火车票余票信息和旅游景点列表，生成一份包含交通安排和景点介绍的南京旅游攻略：\n\n火车票余票信息：\n{ST4.output}\n\n旅游景点列表：\n{ST5.output}"
+      },
+      "llm_config": null
+    },
+    {
+      "id": "GUARD1",
+      "name": "参数整形: get-tickets",
+      "description": "校验并整形下游工具 get-tickets 的入参",
+      "executor": "param_guard",
+      "tool_name": "get-tickets",
+      "source": [
+        "ST1",
+        "ST2",
+        "ST3"
+      ],
+      "target": [
+        "ST4"
+      ],
+      "output": "整形后的下游工具入参",
+      "input": {
+        "source_nodes": [
+          "ST1",
+          "ST2",
+          "ST3"
+        ],
+        "target_node": "ST4",
+        "target_tool": "get-tickets",
+        "target_input_template": {
+          "date": "{ST1.output}",
+          "fromStation": "{ST2.output}",
+          "toStation": "{ST3.output}"
+        },
+        "schema": {
+          "type": "object",
+          "properties": {
+            "date": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 10,
+              "description": "查询日期，格式为 \"yyyy-MM-dd\"。如果用户提供的是相对日期（如“明天”），请务必先调用 `get-current-date` 接口获取当前日期，并计算出目标日期。"
+            },
+            "fromStation": {
+              "type": "string",
+              "description": "出发地的 `station_code` 。必须是通过 `get-station-code-by-names` 或 `get-station-code-of-citys` 接口查询得到的编码，严禁直接使用中文地名。"
+            },
+            "toStation": {
+              "type": "string",
+              "description": "到达地的 `station_code` 。必须是通过 `get-station-code-by-names` 或 `get-station-code-of-citys` 接口查询得到的编码，严禁直接使用中文地名。"
+            },
+            "trainFilterFlags": {
+              "type": "string",
+              "pattern": "^[GDZTKOFS]*$",
+              "maxLength": 8,
+              "default": "",
+              "description": "车次筛选条件，默认为空，即不筛选。支持多个标志同时筛选。例如用户说“高铁票”，则应使用 \"G\"。可选标志：[G(高铁/城际),D(动车),Z(直达特快),T(特快),K(快速),O(其他),F(复兴号),S(智能动车组)]"
+            },
+            "earliestStartTime": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 24,
+              "default": 0,
+              "description": "最早出发时间（0-24），默认为0。"
+            },
+            "latestStartTime": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 24,
+              "default": 24,
+              "description": "最迟出发时间（0-24），默认为24。"
+            },
+            "sortFlag": {
+              "type": "string",
+              "default": "",
+              "description": "排序方式，默认为空，即不排序。仅支持单一标识。可选标志：[startTime(出发时间从早到晚), arriveTime(抵达时间从早到晚), duration(历时从短到长)]"
+            },
+            "sortReverse": {
+              "type": "boolean",
+              "default": false,
+              "description": "是否逆向排序结果，默认为false。仅在设置了sortFlag时生效。"
+            },
+            "limitedNum": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0,
+              "description": "返回的余票数量限制，默认为0，即不限制。"
+            },
+            "format": {
+              "type": "string",
+              "pattern": "^(text|csv|json)$",
+              "default": "text",
+              "description": "返回结果格式，默认为text，建议使用text与csv。可选标志：[text, csv, json]"
+            }
+          },
+          "required": [
+            "date",
+            "fromStation",
+            "toStation"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      "llm_config": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "ST4",
+      "target": "ST6"
+    },
+    {
+      "source": "ST5",
+      "target": "ST6"
+    },
+    {
+      "source": "ST1",
+      "target": "GUARD1"
+    },
+    {
+      "source": "ST2",
+      "target": "GUARD1"
+    },
+    {
+      "source": "ST3",
+      "target": "GUARD1"
+    },
+    {
+      "source": "GUARD1",
+      "target": "ST4"
+    }
+  ]
+}

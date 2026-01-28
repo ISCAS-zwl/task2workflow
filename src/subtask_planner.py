@@ -269,6 +269,13 @@ class SubtaskPlanner:
         selected_tool_names = _extract_tool_names_from_stage1(draft_json)
         self.last_run["stage1_selected_tool_names"] = selected_tool_names
 
+        # 添加固定工具到 selected_tool_names
+        pinned_tools = self.config.pinned_tools
+        for tool_name in pinned_tools:
+            if tool_name in full_tools and tool_name not in selected_tool_names:
+                selected_tool_names.append(tool_name)
+                self.logger.info(f"Added pinned tool to stage2: {tool_name}")
+
         stage2_tools_content = _filter_tools_by_name(full_tools, selected_tool_names)
         if selected_tool_names and not stage2_tools_content:
             self.logger.warning("Stage 2: no selected tools matched available tools.")

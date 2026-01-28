@@ -1,6 +1,6 @@
 {
   "tavily-search": {
-    "description": "A powerful web search tool that provides comprehensive, real-time results using Tavily's AI search engine. Returns relevant web content with customizable parameters for result count, content type, and domain filtering. Ideal for gathering current information, news, and detailed web content analysis.",
+    "description": "【网络搜索】【联网搜索】【实时搜索】A powerful web search tool that provides comprehensive, real-time results using Tavily's AI search engine. 强大的网络搜索工具，提供实时的网页搜索结果。适用于：搜索最新信息、查询新闻、获取网页内容、联网查询、实时数据检索、网络资料搜集。支持自定义搜索深度、时间范围、结果数量等参数。Returns relevant web content with customizable parameters for result count, content type, and domain filtering. Ideal for gathering current information, news, and detailed web content analysis. Use this tool when you need to search the internet, find latest information, query news, or get real-time web data.",
     "input_schema": {
       "type": "object",
       "properties": {
