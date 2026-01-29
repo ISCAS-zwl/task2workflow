@@ -10,7 +10,8 @@
       "Bash(mkdir:*)",
       "Bash(sed:*)",
       "Bash(dir:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

@@ -27,6 +27,7 @@ function App() {
   const [loadedWorkflowName, setLoadedWorkflowName] = useState(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [showBrowser, setShowBrowser] = useState(false)
+  const [dagModified, setDagModified] = useState(false)
 
   const wsRef = useRef(null)
 
@@ -166,6 +167,96 @@ function App() {
     setCurrentRunId(null)
     setLoadedWorkflowName(null)
     setHasStarted(false)
+    setDagModified(false)
+  }
+
+  // 图编辑回调函数
+  const handleNodeCreate = (newNode, position) => {
+    if (!dagData) return
+
+    const updatedNodes = [...(dagData.nodes || []), newNode]
+    const updatedDagData = {
+      ...dagData,
+      nodes: updatedNodes
+    }
+
+    setDagData(updatedDagData)
+    setDagModified(true)
+    console.log('节点已创建:', newNode.id, position)
+  }
+
+  const handleNodeDelete = (nodeId) => {
+    if (!dagData) return
+
+    const updatedNodes = (dagData.nodes || []).filter(n => n.id !== nodeId)
+    const updatedEdges = (dagData.edges || []).filter(e => e.source !== nodeId && e.target !== nodeId)
+
+    const updatedDagData = {
+      ...dagData,
+      nodes: updatedNodes,
+      edges: updatedEdges
+    }
+
+    setDagData(updatedDagData)
+    setDagModified(true)
+
+    // 同时清除该节点的参数覆盖
+    if (paramOverrides[nodeId]) {
+      const newOverrides = { ...paramOverrides }
+      delete newOverrides[nodeId]
+      setParamOverrides(newOverrides)
+    }
+
+    console.log('节点已删除:', nodeId)
+  }
+
+  const handleEdgeCreate = (newEdge) => {
+    if (!dagData) return
+
+    // 检查边是否已存在
+    const edgeExists = (dagData.edges || []).some(
+      e => e.source === newEdge.source && e.target === newEdge.target
+    )
+
+    if (edgeExists) {
+      console.log('边已存在，跳过创建')
+      return
+    }
+
+    const updatedEdges = [...(dagData.edges || []), newEdge]
+    const updatedDagData = {
+      ...dagData,
+      edges: updatedEdges
+    }
+
+    setDagData(updatedDagData)
+    setDagModified(true)
+    console.log('边已创建:', newEdge.source, '->', newEdge.target)
+  }
+
+  const handleEdgeDelete = (source, target) => {
+    if (!dagData) return
+
+    const updatedEdges = (dagData.edges || []).filter(
+      e => !(e.source === source && e.target === target)
+    )
+
+    const updatedDagData = {
+      ...dagData,
+      edges: updatedEdges
+    }
+
+    setDagData(updatedDagData)
+    setDagModified(true)
+    console.log('边已删除:', source, '->', target)
+  }
+
+  const handleNodesChange = (changes) => {
+    // 处理节点位置变化（可选：保存位置信息）
+    // 目前仅标记为已修改
+    if (changes.length > 0) {
+      setDagModified(true)
+    }
   }
 
   const handleStart = () => {
@@ -240,17 +331,23 @@ function App() {
   
   const handleApplyEdits = () => {
     const editCount = Object.keys(paramOverrides).length
-    if (editCount === 0) {
-      alert('没有参数修改需要应用')
+    const hasGraphChanges = dagModified
+
+    if (editCount === 0 && !hasGraphChanges) {
+      alert('没有修改需要应用')
       return
     }
 
-    if (!lastExecutedTask) {
-      alert('没有可重新执行的工作流')
+    if (!lastExecutedTask && !task.trim()) {
+      alert('没有可执行的工作流')
       return
     }
 
-    if (confirm(`确认应用 ${editCount} 个节点的参数修改并重新执行工作流？`)) {
+    const changeDesc = []
+    if (editCount > 0) changeDesc.push(`${editCount} 个参数修改`)
+    if (hasGraphChanges) changeDesc.push('图结构修改')
+
+    if (confirm(`确认应用 ${changeDesc.join(' 和 ')} 并重新执行工作流？`)) {
       setEditMode(false)
       setHasStarted(true)
       setCurrentStage('idle')
@@ -259,13 +356,17 @@ function App() {
       setExecutionData([])
       setFinalResult(null)
 
-      // 使用上次的任务 + 参数覆盖
-      sendMessage({
+      // 使用修改后的图结构执行
+      const message = {
         type: 'start',
-        task: lastExecutedTask,
+        task: lastExecutedTask || task,
         debug: debugMode,
-        param_overrides: paramOverrides
-      })
+        workflow_graph: dagData,  // 使用当前的图结构
+        param_overrides: editCount > 0 ? paramOverrides : undefined
+      }
+
+      sendMessage(message)
+      setDagModified(false)
     }
   }
 
@@ -285,6 +386,7 @@ function App() {
           run_id: currentRunId,
           name,
           description,
+          param_overrides: Object.keys(paramOverrides).length > 0 ? paramOverrides : undefined,
         }),
       })
 
@@ -332,6 +434,11 @@ function App() {
           error: workflow.result.error,
         })
         setCurrentStage('completed')
+      }
+
+      // 恢复参数修改
+      if (workflow.param_overrides && Object.keys(workflow.param_overrides).length > 0) {
+        setParamOverrides(workflow.param_overrides)
       }
 
       setShowBrowser(false)
@@ -461,13 +568,14 @@ function App() {
               <Edit3 size={14} />
               {editMode ? '编辑中' : '编辑工作流'}
             </button>
-            {editMode && Object.keys(paramOverrides).length > 0 && (
+            {editMode && (Object.keys(paramOverrides).length > 0 || dagModified) && (
               <button
                 className="ghost-button apply-edits"
                 onClick={handleApplyEdits}
               >
                 <Check size={14} />
-                应用修改 ({Object.keys(paramOverrides).length})
+                应用修改 {Object.keys(paramOverrides).length > 0 && `(${Object.keys(paramOverrides).length})`}
+                {dagModified && ' *'}
               </button>
             )}
             <button
@@ -499,13 +607,18 @@ function App() {
             </div>
           </div>
           <div className="panel-body">
-            <WorkflowTabs 
+            <WorkflowTabs
               dagData={graphData}
               planningData={planningData}
               executionData={executionData}
               editMode={editMode}
               onParamOverridesChange={setParamOverrides}
               paramOverrides={paramOverrides}
+              onNodeCreate={handleNodeCreate}
+              onNodeDelete={handleNodeDelete}
+              onEdgeCreate={handleEdgeCreate}
+              onEdgeDelete={handleEdgeDelete}
+              onNodesChange={handleNodesChange}
             />
           </div>
         </section>

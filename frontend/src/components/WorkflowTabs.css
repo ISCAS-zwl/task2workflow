@@ -54,3 +54,16 @@
   position: relative;
   overflow: hidden;
 }
+
+/* DAG 容器布局 - 包含工具面板和主视图 */
+.dag-container {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+.dag-main {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}

@@ -1,6 +1,15 @@
 .dag-view {
   height: 100%;
   background: #0d1117;
+  outline: none;
+}
+
+.dag-view.edit-mode {
+  background: linear-gradient(135deg, #0d1117 0%, #0f1419 100%);
+}
+
+.dag-view:focus {
+  outline: none;
 }
 
 .react-flow__attribution {
@@ -59,6 +68,11 @@
 .custom-node.edited {
   border-color: #f2cc60;
   box-shadow: 0 0 0 4px rgba(242, 204, 96, 0.25), 0 4px 20px rgba(242, 204, 96, 0.2);
+}
+
+.custom-node.selected {
+  border-color: #79c0ff;
+  box-shadow: 0 0 0 4px rgba(121, 192, 255, 0.35), 0 4px 20px rgba(121, 192, 255, 0.3);
 }
 
 .custom-node:hover {
@@ -220,9 +234,33 @@
   transition: all 0.2s ease;
 }
 
-.custom-node:hover .react-flow__handle {
+.custom-node:hover .react-flow__handle,
+.react-flow__handle.connectingto,
+.react-flow__handle.connectingfrom {
   opacity: 1;
   transform: scale(1.2);
+}
+
+/* 编辑模式下始终显示连接点 */
+.dag-view.edit-mode .react-flow__handle {
+  opacity: 0.6;
+}
+
+.dag-view.edit-mode .custom-node:hover .react-flow__handle {
+  opacity: 1;
+}
+
+/* 连接线样式 */
+.react-flow__connection-line {
+  stroke: #58a6ff;
+  stroke-width: 2.5px;
+}
+
+/* 边选中样式 */
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #79c0ff !important;
+  stroke-width: 3.5px !important;
+  filter: drop-shadow(0 0 8px rgba(121, 192, 255, 0.6));
 }
 
 .react-flow__handle-left {

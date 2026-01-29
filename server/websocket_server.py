@@ -149,6 +149,7 @@ class SaveWorkflowRequest(BaseModel):
     run_id: str
     name: str
     description: str = ""
+    param_overrides: dict = None
 
 class LoadWorkflowResponse(BaseModel):
     id: str
@@ -588,6 +589,37 @@ async def execute_workflow(task: str, param_overrides: dict = None, workflow_gra
 
 # REST API 端点
 
+TOOLS_FILE = Path(__file__).parent.parent / "tools" / "generated_tools.json"
+
+@app.get("/tools")
+async def list_tools():
+    """获取所有可用工具列表"""
+    try:
+        if not TOOLS_FILE.exists():
+            return JSONResponse(content=[])
+
+        with open(TOOLS_FILE, "r", encoding="utf-8") as f:
+            tools_data = json.load(f)
+
+        # 转换为列表格式，便于前端使用
+        tools_list = []
+        for tool_name, tool_info in tools_data.items():
+            tools_list.append({
+                "name": tool_name,
+                "description": tool_info.get("description", ""),
+                "input_schema": tool_info.get("input_schema", {}),
+                "executor": tool_info.get("executor", "tool"),
+                "mcp_server": tool_info.get("mcp_server"),
+                "mcp_tool": tool_info.get("mcp_tool")
+            })
+
+        return JSONResponse(content=tools_list)
+
+    except Exception as e:
+        logger.error(f"获取工具列表失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/workflows")
 async def list_workflows():
     """获取所有保存的工作流列表"""
@@ -674,7 +706,8 @@ async def save_workflow(request: SaveWorkflowRequest):
             "saved_at": datetime.now().isoformat() + "Z",
             "task": task,
             "description": request.description,
-            "outputs": result_data.get("outputs", {})
+            "outputs": result_data.get("outputs", {}),
+            "param_overrides": request.param_overrides or {}
         }
 
         with open(target_dir / "summary.json", "w", encoding="utf-8") as f:
@@ -737,7 +770,8 @@ async def get_workflow(workflow_name: str):
             "saved_at": summary.get("saved_at", ""),
             "description": summary.get("description", ""),
             "graph": graph_data,
-            "result": result_data
+            "result": result_data,
+            "param_overrides": summary.get("param_overrides", {})
         })
 
     except HTTPException:

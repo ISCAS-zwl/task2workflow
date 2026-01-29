@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import DAGView from './DAGView'
 import PlanningView from './PlanningView'
+import ToolPanel from './ToolPanel'
 import { Network, FileJson, Share2 } from 'lucide-react'
 import './WorkflowTabs.css'
 
@@ -16,14 +17,26 @@ const tabDescriptions = {
   workflow: 'WorkflowIR 结构，查看节点输入输出与依赖。'
 }
 
-function WorkflowTabs({ dagData, planningData, executionData, editMode, onParamOverridesChange, paramOverrides }) {
+function WorkflowTabs({
+  dagData,
+  planningData,
+  executionData,
+  editMode,
+  onParamOverridesChange,
+  paramOverrides,
+  onNodeCreate,
+  onNodeDelete,
+  onEdgeCreate,
+  onEdgeDelete,
+  onNodesChange
+}) {
   const [activeTab, setActiveTab] = useState('dag')
 
   return (
     <div className="workflow-tabs">
       <div className="tabs-header">
         {tabs.map(({ key, label, icon: Icon }) => (
-          <button 
+          <button
             key={key}
             className={`tab-button ${activeTab === key ? 'active' : ''}`}
             onClick={() => setActiveTab(key)}
@@ -37,13 +50,25 @@ function WorkflowTabs({ dagData, planningData, executionData, editMode, onParamO
 
       <div className="tabs-content">
         {activeTab === 'dag' && (
-          <DAGView 
-            data={dagData} 
-            executionData={executionData} 
-            editMode={editMode}
-            onParamOverridesChange={onParamOverridesChange}
-            paramOverrides={paramOverrides}
-          />
+          <div className="dag-container">
+            {editMode && (
+              <ToolPanel editMode={editMode} />
+            )}
+            <div className="dag-main">
+              <DAGView
+                data={dagData}
+                executionData={executionData}
+                editMode={editMode}
+                onParamOverridesChange={onParamOverridesChange}
+                paramOverrides={paramOverrides}
+                onNodeCreate={onNodeCreate}
+                onNodeDelete={onNodeDelete}
+                onEdgeCreate={onEdgeCreate}
+                onEdgeDelete={onEdgeDelete}
+                onNodesChange={onNodesChange}
+              />
+            </div>
+          </div>
         )}
         {activeTab === 'json' && (
           <PlanningView data={planningData} mode="json" />
