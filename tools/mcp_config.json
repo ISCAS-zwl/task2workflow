@@ -1,11 +1,12 @@
 {
     "mcpServers": {
-        "tavily-mcp": {
+        "tavily-remote": {
             "command": "npx",
-            "args": ["-y", "tavily-mcp@0.1.2"],
-            "env": {
-                "TAVILY_API_KEY": "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"
-        }
+            "args": [
+                "-y",
+                "mcp-remote",
+                "https://mcp.tavily.com/mcp/?tavilyApiKey=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"
+            ]
         },
         "12306-mcp": {
             "command": "npx",
@@ -63,6 +64,73 @@
                 "word_mcp_server"
             ],
             "command": "uvx"
+        },
+        "time": {
+            "command": "uvx",
+            "args": [
+                "mcp-server-time"
+            ]
+        },
+         "wikipedia": {
+            "command": "uvx",
+            "args": [
+                "wikipedia-mcp"
+            ]
+        },
+         "Asset_Price_MCP": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "asset-price-mcp"
+            ]
+        },
+        "whois": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@bharathvaj/whois-mcp@latest"
+            ]
+        },
+        "ygocdb": {
+            "command": "npx",
+            "args": [
+                "ygocdb-mcp-server"
+            ]
+        },
+        "coin-flip": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@mcpfun/mcp-server-leetcode"
+            ]
+        },
+        "opgg-mcp": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "supergateway",
+                "--streamableHttp",
+                "https://mcp-api.op.gg/mcp"
+            ]
+        },
+        "met-museum": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "metmuseum-mcp"
+            ]
+        },
+        "yfmcp": {
+            "command": "uvx",
+            "args": [
+                "yfmcp@latest"
+            ]
+        },
+        "random-number": {
+            "command": "uvx",
+            "args": [
+                "random-number-mcp"
+            ]
         }
     }   
 }

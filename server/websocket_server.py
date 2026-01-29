@@ -18,7 +18,7 @@ import shutil
 
 from src.subtask_planner import SubtaskPlanner
 from src.graph2workflow import Graph2Workflow
-from tools.extract_mcp_tools import refresh_tool_metadata_incremental, ToolExtractionError
+from tools.extract_mcp_tools import refresh_tool_metadata_incremental, refresh_tool_metadata, ToolExtractionError
 from tools.mcp_manager import MCPToolManager, MCPManagerError
 
 logging.basicConfig(
@@ -87,13 +87,67 @@ def apply_param_overrides(workflow_ir, param_overrides):
     return WorkflowIR(nodes=modified_nodes, edges=workflow_ir.edges)
 
 
+# 配置文件路径
+MCP_CONFIG_PATH = Path(__file__).parent.parent / "tools" / "mcp_config.json"
+GENERATED_TOOLS_PATH = Path(__file__).parent.parent / "tools" / "generated_tools.json"
+
+
+def _config_changed() -> bool:
+    """检测 mcp_config.json 是否比 generated_tools.json 更新"""
+    if not GENERATED_TOOLS_PATH.exists():
+        return True
+    if not MCP_CONFIG_PATH.exists():
+        return False
+    return MCP_CONFIG_PATH.stat().st_mtime > GENERATED_TOOLS_PATH.stat().st_mtime
+
+
+def _get_config_servers() -> set:
+    """获取 mcp_config.json 中的服务器列表"""
+    if not MCP_CONFIG_PATH.exists():
+        return set()
+    try:
+        with open(MCP_CONFIG_PATH, "r", encoding="utf-8") as f:
+            config = json.load(f)
+        return set(config.get("mcpServers", {}).keys())
+    except Exception:
+        return set()
+
+
+def _get_generated_servers() -> set:
+    """获取 generated_tools.json 中的服务器列表"""
+    if not GENERATED_TOOLS_PATH.exists():
+        return set()
+    try:
+        with open(GENERATED_TOOLS_PATH, "r", encoding="utf-8") as f:
+            tools = json.load(f)
+        return {meta.get("mcp_server") for meta in tools.values() if isinstance(meta, dict) and meta.get("mcp_server")}
+    except Exception:
+        return set()
+
+
 async def _refresh_mcp_tools_background() -> None:
     try:
-        data, added = await asyncio.to_thread(refresh_tool_metadata_incremental)
-        if added:
-            logger.info("MCP 工具列表已增量更新，新增 %s 个工具，共 %s 个工具", added, len(data))
+        config_servers = _get_config_servers()
+        generated_servers = _get_generated_servers()
+
+        # 检测是否需要完整刷新：配置文件更新、服务器被删除、或服务器列表不一致
+        need_full_refresh = (
+            _config_changed() or
+            not generated_servers.issubset(config_servers) or
+            generated_servers != config_servers
+        )
+
+        if need_full_refresh:
+            logger.info("检测到 mcp_config.json 变化，执行完整刷新...")
+            data = await asyncio.to_thread(refresh_tool_metadata)
+            logger.info("MCP 工具列表已完整刷新，共 %s 个工具", len(data))
         else:
-            logger.info("MCP 工具列表未变化，跳过刷新")
+            # 增量更新（只添加新服务器）
+            data, added = await asyncio.to_thread(refresh_tool_metadata_incremental)
+            if added:
+                logger.info("MCP 工具列表已增量更新，新增 %s 个工具，共 %s 个工具", added, len(data))
+            else:
+                logger.info("MCP 工具列表未变化，跳过刷新")
     except ToolExtractionError as exc:
         logger.warning("自动刷新 MCP 工具列表失败：%s", exc)
     except Exception as exc:

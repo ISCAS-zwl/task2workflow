@@ -1,0 +1,239 @@
+{
+  "nodes": [
+    {
+      "id": "ST1",
+      "name": "查询中单英雄版本热度",
+      "description": "调用工具 lol_list_lane_meta_champions，将 position 参数设为 'mid'，获取当前版本中单位置的英雄热度、胜率及排名数据，用于筛选前5名热门英雄。",
+      "executor": "tool",
+      "tool_name": "lol_list_lane_meta_champions",
+      "source": null,
+      "target": [
+        "GUARD1",
+        "GUARD2"
+      ],
+      "output": "中单英雄版本数据列表（包含英雄名、排名、胜率、登场率等）",
+      "input": {
+        "position": "mid",
+        "desired_output_fields": [
+          "data.positions.mid[].{ban_rate,champion,is_rip,kda,kill,pick_rate,play,rank,rank_prev,rank_prev_patch,role_rate,tier,win,win_rate}"
+        ]
+      },
+      "llm_config": null
+    },
+    {
+      "id": "ST2",
+      "name": "分析热门英雄详情",
+      "description": "循环调用工具 lol_get_champion_analysis（针对ST1筛选出的前5名英雄），将 position 设为 'mid'，game_mode 设为 'RANKED'，获取每位英雄的克制关系（weak_counters/strong_counters）和核心出装（core_items/starter_items/runes）。",
+      "executor": "tool",
+      "tool_name": "lol_get_champion_analysis",
+      "source": [
+        "GUARD1"
+      ],
+      "target": [
+        "ST4"
+      ],
+      "output": "前5名热门英雄的详细分析数据（包含克制关系、出装、符文）",
+      "input": {
+        "__from_guard__": "GUARD1"
+      },
+      "llm_config": null
+    },
+    {
+      "id": "ST3",
+      "name": "获取英雄对线技巧",
+      "description": "调用工具 lol_list_champion_details，将 champions 参数设为前5名英雄的数组，获取英雄的 AllyTips（对线技巧）和 EnemyTips，用于补充对线和团战攻略。",
+      "executor": "tool",
+      "tool_name": "lol_list_champion_details",
+      "source": [
+        "GUARD2"
+      ],
+      "target": [
+        "ST4"
+      ],
+      "output": "前5名英雄的技巧描述及背景信息",
+      "input": {
+        "__from_guard__": "GUARD2"
+      },
+      "llm_config": null
+    },
+    {
+      "id": "ST4",
+      "name": "生成综合分析报告",
+      "description": "使用 LLM 整合 ST1 的热度数据、ST2 的出装克制关系以及 ST3 的对线技巧，生成包含前5名中单英雄、克制关系、核心出装及对线团战攻略的完整报告。",
+      "executor": "llm",
+      "tool_name": null,
+      "source": [
+        "ST1",
+        "ST2",
+        "ST3"
+      ],
+      "target": null,
+      "output": "英雄联盟中单热门英雄分析报告文本",
+      "input": {
+        "prompt": "请根据以下信息生成一份英雄联盟中单热门英雄分析报告：\n1. 版本热度数据：{ST1.output}\n2. 英雄详情分析（克制关系、出装、符文）：{ST2.output}\n3. 英雄对线技巧：{ST3.output}\n\n报告需要包含前5名热门英雄，并列出每位英雄的克制关系、核心出装及对线团战攻略。"
+      },
+      "llm_config": null
+    },
+    {
+      "id": "GUARD1",
+      "name": "参数整形: lol_get_champion_analysis",
+      "description": "校验并整形下游工具 lol_get_champion_analysis 的入参",
+      "executor": "param_guard",
+      "tool_name": "lol_get_champion_analysis",
+      "source": [
+        "ST1"
+      ],
+      "target": [
+        "ST2"
+      ],
+      "output": "整形后的下游工具入参",
+      "input": {
+        "source_nodes": [
+          "ST1"
+        ],
+        "target_node": "ST2",
+        "target_tool": "lol_get_champion_analysis",
+        "target_input_template": {
+          "position": "mid",
+          "game_mode": "RANKED",
+          "champion": "{ST1.output}",
+          "lang": "en_US",
+          "desired_output_fields": [
+            "data.core_items.{ids[],ids_names[],pick_rate,play,win}",
+            "data.starter_items.{ids[],ids_names[],pick_rate,play,win}",
+            "data.runes.{id,pick_rate,play,primary_page_id,primary_page_name,primary_rune_ids[],primary_rune_names[],secondary_page_id,secondary_page_name,secondary_rune_ids[],secondary_rune_names[],stat_mod_ids[],stat_mod_names[],win}",
+            "data.weak_counters[].{champion_id,champion_name,play,win,win_rate}",
+            "data.strong_counters[].{champion_id,champion_name,play,win,win_rate}"
+          ]
+        },
+        "schema": {
+          "type": "object",
+          "properties": {
+            "game_mode": {
+              "type": "string",
+              "description": "Game mode (RANKED, FLEX, URF, ARAM, NEXUS_BLITZ)"
+            },
+            "champion": {
+              "type": "string",
+              "description": "Champion name in UPPER_SNAKE_CASE (e.g., AHRI, LEE_SIN)"
+            },
+            "position": {
+              "type": "string",
+              "description": "Lane position (top, mid, jungle, adc, support)"
+            },
+            "lang": {
+              "type": "string",
+              "description": "Locale code (e.g., en_US, ko_KR, ja_JP)"
+            },
+            "desired_output_fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "title": "Output fields to extract",
+              "description": "Select ONLY from fields below. This is a CLOSED SET. Do NOT invent new field names.\n\nAvailable fields:\n- champion\n- data.boots.{ids[],ids_names[],pick_rate,play,win}\n- data.core_items.{ids[],ids_names[],pick_rate,play,win}\n- data.fifth_items[].{ids[],ids_names[],pick_rate,play,win}\n- data.fourth_items[].{ids[],ids_names[],pick_rate,play,win}\n- data.last_items[].{ids[],ids_names[],pick_rate,play,win}\n- data.runes.{id,pick_rate,play,primary_page_id,primary_page_name,primary_rune_ids[],primary_rune_names[],secondary_page_id,secondary_page_name,secondary_rune_ids[],secondary_rune_names[],stat_mod_ids[],stat_mod_names[],win}\n- data.sixth_items[].{ids[],ids_names[],pick_rate,play,win}\n- data.skill_masteries.builds[].{order[],pick_rate,play,win}\n- data.skill_masteries.{ids[],pick_rate,play,win}\n- data.skills.{order[],pick_rate,play,win}\n- data.starter_items.{ids[],ids_names[],pick_rate,play,win}\n- data.strong_counters[].{champion_id,champion_name,play,win,win_rate}\n- data.summary.average_stats.tier_data.{rank,rank_prev,rank_prev_patch,tier}\n- data.summary.average_stats.{ban_rate,kda,pick_rate,play,rank,tier,win_rate}\n- data.summary.positions[].counters[].{champion_id,champion_name,play,win}\n- data.summary.positions[].name\n- data.summary.positions[].roles[].name\n- data.summary.positions[].roles[].stats.{play,role_rate,win,win_rate}\n- data.summary.positions[].stats.tier_data.{rank,rank_prev,rank_prev_patch,tier}\n- data.summary.positions[].stats.{ban_rate,kda,pick_rate,play,role_rate,win_rate}\n- data.summary.{id,is_rip,is_rotation,roles}\n- data.summoner_spells.{ids[],ids_names[],pick_rate,play,win}\n- data.synergies.adc[].synergy_tier_data.{rank,rank_prev,rank_prev_patch,tier}\n- data.synergies.adc[].{champion_id,champion_name,play,position,score,score_rank,synergy_champion_id,synergy_champion_name,synergy_position,win,win_rate}\n- data.synergies.jungle[].synergy_tier_data.{rank,rank_prev,rank_prev_patch,tier}\n- data.synergies.jungle[].{champion_id,champion_name,play,position,score,score_rank,synergy_champion_id,synergy_champion_name,synergy_position,win,win_rate}\n- data.synergies.support[].synergy_tier_data.{rank,rank_prev,rank_prev_patch,tier}\n- data.synergies.support[].{champion_id,champion_name,play,position,score,score_rank,synergy_champion_id,synergy_champion_name,synergy_position,win,win_rate}\n- data.synergies.top[].synergy_tier_data.{rank,rank_prev,rank_prev_patch,tier}\n- data.synergies.top[].{champion_id,champion_name,play,position,score,score_rank,synergy_champion_id,synergy_champion_name,synergy_position,win,win_rate}\n- data.trends.ban.{created_at,rank,rate,version}\n- data.trends.pick.{created_at,rank,rate,version}\n- data.trends.win.{created_at,rank,rate,version}\n- data.trends.{total_position_rank,total_rank}\n- data.weak_counters[].{champion_id,champion_name,play,win,win_rate}\n- data.{damage_type,mythic_items}\n- position\n\nField descriptions:\n- mythic_items: Mythic tier items (legendary grade, one per build)\n- strong_counters: Champions that counter me (my win rate < 50% against them)\n- weak_counters: Champions I counter (my win rate > 50% against them)\n- damage_type: Champion damage type (AD=Attack Damage, AP=Ability Power, BOTH=Hybrid)\n- skill_masteries: Priority order for maxing abilities (Q/W/E)"
+            }
+          },
+          "required": [
+            "game_mode",
+            "champion",
+            "position",
+            "lang",
+            "desired_output_fields"
+          ]
+        }
+      },
+      "llm_config": null
+    },
+    {
+      "id": "GUARD2",
+      "name": "参数整形: lol_list_champion_details",
+      "description": "校验并整形下游工具 lol_list_champion_details 的入参",
+      "executor": "param_guard",
+      "tool_name": "lol_list_champion_details",
+      "source": [
+        "ST1"
+      ],
+      "target": [
+        "ST3"
+      ],
+      "output": "整形后的下游工具入参",
+      "input": {
+        "source_nodes": [
+          "ST1"
+        ],
+        "target_node": "ST3",
+        "target_tool": "lol_list_champion_details",
+        "target_input_template": {
+          "champions": "{ST1.output}",
+          "lang": "en_US",
+          "desired_output_fields": [
+            "data.champions[].{ally_tips[],enemy_tips[],name}"
+          ]
+        },
+        "schema": {
+          "type": "object",
+          "properties": {
+            "lang": {
+              "type": "string",
+              "description": "Locale code (e.g., en_US, ko_KR, ja_JP)",
+              "default": "en_US"
+            },
+            "champions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Array of champion names in UPPER_SNAKE_CASE",
+              "maxItems": 10,
+              "minItems": 1,
+              "default": [
+                "AHRI",
+                "YASUO",
+                "LUX"
+              ]
+            },
+            "desired_output_fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "title": "Output fields to extract",
+              "description": "Select ONLY from fields below. This is a CLOSED SET. Do NOT invent new field names.\n\nAvailable fields:\n- data.champions[].info.{attack,defense,difficulty,magic}\n- data.champions[].passive.{description,name}\n- data.champions[].spells[].{cooldown_burn[],cooldown_burn_float[],cost_burn[],description,key,max_rank,name,range_burn[],tooltip}\n- data.champions[].stats.{armor,armorperlevel,attackdamage,attackdamageperlevel,attackrange,attackspeed,attackspeedperlevel,crit,critperlevel,hp,hpperlevel,hpregen,hpregenperlevel,movespeed,mp,mpperlevel,mpregen,mpregenperlevel,spellblock,spellblockperlevel}\n- data.champions[].{ally_tips[],blurb,enemy_tips[],id,key,lore,name,partype,release_date,tags[],title}\n- lang\n- requested_champions[]\n\nField descriptions:\n- partype: Resource type (mana, energy, rage, etc.)\n- evolve: Champion evolution information (true if champion can evolve abilities)\n- info.attack: Attack power rating (0-10 scale)\n- info.defense: Defensive capability rating (0-10 scale)\n- info.magic: Magic power rating (0-10 scale)\n- info.difficulty: Gameplay difficulty rating (0-10 scale)\n- stats.mp: Base mana/resource points\n- stats.spellblock: Base magic resistance\n- stats.hpregen: Health regeneration per 5 seconds\n- stats.mpregen: Mana regeneration per 5 seconds"
+            }
+          },
+          "required": [
+            "desired_output_fields"
+          ]
+        }
+      },
+      "llm_config": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "ST2",
+      "target": "ST4"
+    },
+    {
+      "source": "ST3",
+      "target": "ST4"
+    },
+    {
+      "source": "ST1",
+      "target": "GUARD1"
+    },
+    {
+      "source": "GUARD1",
+      "target": "ST2"
+    },
+    {
+      "source": "ST1",
+      "target": "GUARD2"
+    },
+    {
+      "source": "GUARD2",
+      "target": "ST3"
+    }
+  ]
+}
